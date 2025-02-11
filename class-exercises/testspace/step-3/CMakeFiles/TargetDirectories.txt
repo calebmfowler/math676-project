@@ -1,0 +1,10 @@
+/home/calebfowler/dealii-workspace/testspace/step-3/CMakeFiles/step-3.dir
+/home/calebfowler/dealii-workspace/testspace/step-3/CMakeFiles/run.dir
+/home/calebfowler/dealii-workspace/testspace/step-3/CMakeFiles/debug.dir
+/home/calebfowler/dealii-workspace/testspace/step-3/CMakeFiles/release.dir
+/home/calebfowler/dealii-workspace/testspace/step-3/CMakeFiles/runclean.dir
+/home/calebfowler/dealii-workspace/testspace/step-3/CMakeFiles/distclean.dir
+/home/calebfowler/dealii-workspace/testspace/step-3/CMakeFiles/strip_comments.dir
+/home/calebfowler/dealii-workspace/testspace/step-3/CMakeFiles/info.dir
+/home/calebfowler/dealii-workspace/testspace/step-3/CMakeFiles/edit_cache.dir
+/home/calebfowler/dealii-workspace/testspace/step-3/CMakeFiles/rebuild_cache.dir
