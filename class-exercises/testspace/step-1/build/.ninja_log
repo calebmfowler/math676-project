@@ -1,5 +1,0 @@
-# ninja log v5
-3	8	0	CMakeFiles/strip_comments	ed1acab93fa4bafe
-3	8	0	/home/calebfowler/dealii-workspace/testspace/step-1/build/CMakeFiles/strip_comments	ed1acab93fa4bafe
-8	10189	1738350921293136966	CMakeFiles/step-1.dir/step-1.cc.o	b516a3b7be1d93b0
-10189	12901	1738350923978644177	step-1	452b483fa9fe133
