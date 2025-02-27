@@ -1,11 +1,11 @@
 subsection Heat Equation
   set Initial global refinement      = 4
-  set Maximum delta refinement level = 2
+  set Maximum delta refinement level = 3
   set Mesh adaptation frequency      = 10
 
   subsection Right hand side
     set Function constants  = 
-    set Function expression = 0
+    set Function expression = if(sqrt((x - 0.5 * cos(pi * t))^2 + (y - 0.5 * sin(pi * t))^2) < 0.125, 100, 0)
     set Variable names      = x,y,t
   end
   
@@ -17,14 +17,14 @@ subsection Heat Equation
   
   subsection Boundary values
     set Function constants  = 
-    set Function expression = (if(x<-0.999, 1, 0) + if(x>0.999, -1, 0)) * cos(4*pi*t)
+    set Function expression = 0
     set Variable names      = x,y,t
   end
 
   subsection Time stepper
     subsection Running parameters
-      set final time              = 5
-      set initial step size       = 0.025
+      set final time              = 0.25
+      set initial step size       = 0.0025
       set initial time            = 0
       set match final time        = false
       set maximum number of steps = -1

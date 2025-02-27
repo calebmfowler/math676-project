@@ -18,6 +18,7 @@
  */
 
 
+#include <deal.II/base/exceptions.h>
 #include <deal.II/base/utilities.h>
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/function.h>
@@ -343,7 +344,7 @@ namespace Step86
               {
                 cell_residual(i) +=
                   (fe_values.shape_value(i, q) *       // [phi_i(x_q) *
-                     solution_dot_values[q]            //  u(x_q)
+                     solution_dot_values[q]            //  u(x_q) // IS THIS NOT dot u(x_q)? THE DOCUMENTATION ALSO NEEDS CORRECTING
                    +                                   //  +
                    fe_values.shape_grad(i, q) *        //  grad phi_i(x_q) *
                      solution_gradients[q]             //  grad u(x_q)
@@ -554,7 +555,10 @@ namespace Step86
   template <int dim>
   void HeatEquation<dim>::run()
   {
-    GridGenerator::hyper_L(triangulation);
+    const Point<dim> center;
+    const float radius = 1;
+    GridGenerator::hyper_ball(triangulation, center, radius);
+    if (dim != 2) { DEAL_II_NOT_IMPLEMENTED(); }
     triangulation.refine_global(initial_global_refinement);
 
     setup_system(/* time */ 0);
