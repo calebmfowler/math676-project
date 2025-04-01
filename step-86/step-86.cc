@@ -141,14 +141,14 @@ namespace Step86
       initial_value_function;
     ParameterAcceptorProxy<Functions::ParsedFunction<dim>>
       boundary_values_function;
-    
-    double alpha(double u, double theta);
-
-    double alpha_prime(double u, double theta);
-
-    double sigma(double u, double theta);
-
-    double sigma_prime(double u, double theta);
+    ParameterAcceptorProxy<Functions::ParsedFunction<dim>>
+      alpha;
+    ParameterAcceptorProxy<Functions::ParsedFunction<dim>>
+      alpha_prime;
+    ParameterAcceptorProxy<Functions::ParsedFunction<dim>>
+      sigma;
+    ParameterAcceptorProxy<Functions::ParsedFunction<dim>>
+      sigma_prime;
   };
 
 
@@ -179,8 +179,12 @@ namespace Step86
     , max_delta_refinement_level(2)
     , mesh_adaptation_frequency(0)
     , right_hand_side_function("/Heat Equation/Right hand side")
-    , initial_value_function("/Heat Equation/Initial value")
-    , boundary_values_function("/Heat Equation/Boundary values")
+    , initial_value_function("/Heat Equation/Initial value", num_solution_components)
+    , boundary_values_function("/Heat Equation/Boundary values", num_solution_components)
+    , alpha("/Heat Equation/Alpha")
+    , alpha_prime("/Heat Equation/Alpha prime")
+    , sigma("/Heat Equation/Sigma")
+    , sigma_prime("/Heat Equation/Sigma prime")
   {
     enter_subsection("Time stepper");
     {
@@ -297,34 +301,6 @@ namespace Step86
   }
 
   template <int dim>
-  double
-  HeatEquation<dim>::alpha(double /* u */, double /* theta */)
-  {
-    return 1;
-  }
-  
-  template <int dim>
-  double
-  HeatEquation<dim>::alpha_prime(double /* u */, double /* theta */)
-  {
-    return 0;
-  }
-
-  template <int dim>
-  double
-  HeatEquation<dim>::sigma(double /* u */, double /* theta */)
-  {
-    return 0;
-  }  
-
-  template <int dim>
-  double
-  HeatEquation<dim>::sigma_prime(double /* u */, double /* theta */)
-  {
-    return 0;
-  }  
-
-  template <int dim>
   void
   HeatEquation<dim>::implicit_function(const double                      time,
                                        const PETScWrappers::MPI::Vector &solution,
@@ -399,8 +375,9 @@ namespace Step86
             locally_relevant_solution, cohesion_values);
           for (const auto& q : fe_values.quadrature_point_indices())
             {
-              alpha_values[q] = alpha(temperature_values[q], cohesion_values[q]);
-              sigma_values[q] = sigma(temperature_values[q], cohesion_values[q]);
+              const Point<2> sol(temperature_values[q], cohesion_values[q]);
+              alpha_values[q] = alpha.value(sol);
+              sigma_values[q] = sigma.value(sol);
             } 
 
           cell->get_dof_indices(local_dof_indices);
@@ -503,9 +480,10 @@ namespace Step86
             locally_relevant_solution, cohesion_values);
           for (const auto& q : fe_values.quadrature_point_indices())
             {
-              alpha_values[q] = alpha(temperature_values[q], cohesion_values[q]);
-              alpha_prime_values[q] = alpha_prime(temperature_values[q], cohesion_values[q]);
-              sigma_prime_values[q] = sigma_prime(temperature_values[q], cohesion_values[q]);
+              const Point<2> sol(temperature_values[q], cohesion_values[q]);
+              alpha_values[q] = alpha.value(sol);
+              alpha_prime_values[q] = alpha_prime.value(sol);
+              sigma_prime_values[q] = sigma_prime.value(sol);
             }
 
           cell->get_dof_indices(local_dof_indices);
@@ -670,7 +648,7 @@ namespace Step86
         current_constraints.merge(hanging_nodes_constraints);
         VectorTools::interpolate_boundary_values(dof_handler,
                                                  0,
-                                                 Functions::ZeroFunction<dim>(num_solution_components), // CURRENTLY OVERRIDING BOUNDARY FUNC
+                                                 boundary_values_function,
                                                  current_constraints);
         current_constraints.make_consistent_in_parallel(locally_owned_dofs,
                                                         locally_relevant_dofs,
@@ -764,7 +742,7 @@ namespace Step86
 
 
     PETScWrappers::MPI::Vector solution(locally_owned_dofs, mpi_communicator);
-    VectorTools::interpolate(dof_handler, Functions::ZeroFunction<dim>(num_solution_components), solution); // CURRENTLY OVERRIDING INITIAL FUNC
+    VectorTools::interpolate(dof_handler, initial_value_function, solution);
 
     petsc_ts.solve(solution);
   }
