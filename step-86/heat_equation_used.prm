@@ -4,17 +4,17 @@ subsection Heat Equation
   set Mesh adaptation frequency      = 10
   subsection Boundary values
     set Function constants  = 
-    set Function expression = 0
+    set Function expression = 0, 0
     set Variable names      = x,y,t
   end
   subsection Initial value
     set Function constants  = 
-    set Function expression = 0
+    set Function expression = 0, 0
     set Variable names      = x,y,t
   end
   subsection Right hand side
     set Function constants  = 
-    set Function expression = if(sqrt((x - 0.5 * cos(pi * t))^2 + (y - 0.5 * sin(pi * t))^2) < 0.125, 100, 0)
+    set Function expression = 0
     set Variable names      = x,y,t
   end
   subsection Time stepper
@@ -27,8 +27,8 @@ subsection Heat Equation
       set relative error tolerance = -1
     end
     subsection Running parameters
-      set final time              = 0.25
-      set initial step size       = 0.0025
+      set final time              = 0.01
+      set initial step size       = 0.01
       set initial time            = 0
       set match final time        = false
       set maximum number of steps = -1

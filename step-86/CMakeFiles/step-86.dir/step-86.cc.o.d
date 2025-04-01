@@ -2114,6 +2114,10 @@ CMakeFiles/step-86.dir/step-86.cc.o: \
  /usr/include/deal.II/fe/fe_values_base.h \
  /usr/include/deal.II/fe/fe_values_views.h \
  /usr/include/deal.II/base/lazy.h /usr/include/c++/13/variant \
+ /usr/include/deal.II/fe/fe_system.h /usr/include/deal.II/fe/fe_tools.h \
+ /usr/include/deal.II/lac/la_parallel_vector.h \
+ /usr/include/deal.II/base/memory_space_data.h \
+ /usr/include/deal.II/base/cuda.h \
  /usr/include/deal.II/numerics/data_out.h \
  /usr/include/deal.II/grid/filtered_iterator.h \
  /usr/include/deal.II/numerics/data_out_dof_data.h \
@@ -2130,9 +2134,6 @@ CMakeFiles/step-86.dir/step-86.cc.o: \
  /usr/include/deal.II/multigrid/mg_constrained_dofs.h \
  /usr/include/deal.II/numerics/vector_tools_evaluate.h \
  /usr/include/deal.II/base/mpi_remote_point_evaluation.h \
- /usr/include/deal.II/lac/la_parallel_vector.h \
- /usr/include/deal.II/base/memory_space_data.h \
- /usr/include/deal.II/base/cuda.h \
  /usr/include/deal.II/matrix_free/fe_point_evaluation.h \
  /usr/include/deal.II/base/signaling_nan.h \
  /usr/include/deal.II/matrix_free/evaluation_flags.h \

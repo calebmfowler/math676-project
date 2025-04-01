@@ -44,8 +44,11 @@
 #include <deal.II/grid/grid_out.h>
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/dofs/dof_tools.h>
+#include <deal.II/fe/component_mask.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_values.h>
+#include <deal.II/fe/fe_values_extractors.h>
+#include <deal.II/fe/fe_system.h>
 #include <deal.II/numerics/data_out.h>
 #include <deal.II/numerics/vector_tools.h>
 #include <deal.II/numerics/error_estimator.h>
@@ -76,7 +79,13 @@ namespace Step86
     TimerOutput        computing_timer;
 
     parallel::distributed::Triangulation<dim> triangulation;
-    FE_Q<dim>                                 fe;
+    static constexpr unsigned int             polynomial_degree = 1;
+    static constexpr unsigned int             num_solution_components = 2;
+    static constexpr unsigned int             temperature_index = 0;
+    static constexpr unsigned int             cohesion_index = 1;
+    const FESystem<dim>                       fe;
+    const FEValuesExtractors::Scalar          temperature_extractor;
+    const FEValuesExtractors::Scalar          cohesion_extractor;
     DoFHandler<dim>                           dof_handler;
 
     IndexSet locally_owned_dofs;
@@ -132,6 +141,14 @@ namespace Step86
       initial_value_function;
     ParameterAcceptorProxy<Functions::ParsedFunction<dim>>
       boundary_values_function;
+    
+    double alpha(double u, double theta);
+
+    double alpha_prime(double u, double theta);
+
+    double sigma(double u, double theta);
+
+    double sigma_prime(double u, double theta);
   };
 
 
@@ -149,7 +166,9 @@ namespace Step86
                     typename Triangulation<dim>::MeshSmoothing(
                       Triangulation<dim>::smoothing_on_refinement |
                       Triangulation<dim>::smoothing_on_coarsening))
-    , fe(1)
+    , fe(FE_Q<dim>(polynomial_degree) ^ num_solution_components)
+    , temperature_extractor(temperature_index)
+    , cohesion_extractor(cohesion_index)
     , dof_handler(triangulation)
     , time_stepper_data("",
                         "beuler",
@@ -220,7 +239,7 @@ namespace Step86
     homogeneous_constraints.merge(hanging_nodes_constraints);
     VectorTools::interpolate_boundary_values(dof_handler,
                                              0,
-                                             Functions::ZeroFunction<dim>(),
+                                             Functions::ZeroFunction<dim>(num_solution_components),
                                              homogeneous_constraints);
     homogeneous_constraints.make_consistent_in_parallel(locally_owned_dofs,
                                                         locally_relevant_dofs,
@@ -251,13 +270,14 @@ namespace Step86
   template <int dim>
   void HeatEquation<dim>::output_results(const double       time,
                                          const unsigned int timestep_number,
-                                         const PETScWrappers::MPI::Vector &y)
+                                         const PETScWrappers::MPI::Vector &solution)
   {
     TimerOutput::Scope t(computing_timer, "output results");
 
     DataOut<dim> data_out;
     data_out.attach_dof_handler(dof_handler);
-    data_out.add_data_vector(y, "U");
+    const std::vector<std::string> labels = {"u", "theta"};
+    data_out.add_data_vector(solution, labels);
     data_out.build_patches();
 
     data_out.set_flags(DataOutBase::VtkFlags(time, timestep_number));
@@ -276,13 +296,39 @@ namespace Step86
       }
   }
 
+  template <int dim>
+  double
+  HeatEquation<dim>::alpha(double /* u */, double /* theta */)
+  {
+    return 1;
+  }
+  
+  template <int dim>
+  double
+  HeatEquation<dim>::alpha_prime(double /* u */, double /* theta */)
+  {
+    return 0;
+  }
 
+  template <int dim>
+  double
+  HeatEquation<dim>::sigma(double /* u */, double /* theta */)
+  {
+    return 0;
+  }  
+
+  template <int dim>
+  double
+  HeatEquation<dim>::sigma_prime(double /* u */, double /* theta */)
+  {
+    return 0;
+  }  
 
   template <int dim>
   void
   HeatEquation<dim>::implicit_function(const double                      time,
-                                       const PETScWrappers::MPI::Vector &y,
-                                       const PETScWrappers::MPI::Vector &y_dot,
+                                       const PETScWrappers::MPI::Vector &solution,
+                                       const PETScWrappers::MPI::Vector &solution_dot,
                                        PETScWrappers::MPI::Vector &residual)
   {
     TimerOutput::Scope t(computing_timer, "implicit function");
@@ -291,8 +337,8 @@ namespace Step86
                                             mpi_communicator);
     PETScWrappers::MPI::Vector tmp_solution_dot(locally_owned_dofs,
                                                 mpi_communicator);
-    tmp_solution     = y;
-    tmp_solution_dot = y_dot;
+    tmp_solution     = solution;
+    tmp_solution_dot = solution_dot;
 
     update_current_constraints(time);
     current_constraints.distribute(tmp_solution);
@@ -309,17 +355,26 @@ namespace Step86
 
     const QGauss<dim> quadrature_formula(fe.degree + 1);
     FEValues<dim>     fe_values(fe,
-                            quadrature_formula,
-                            update_values | update_gradients |
-                              update_quadrature_points | update_JxW_values);
+                                quadrature_formula,
+                                update_values | update_gradients |
+                                update_quadrature_points | update_JxW_values);
 
     const unsigned int dofs_per_cell = fe.n_dofs_per_cell();
     const unsigned int n_q_points    = quadrature_formula.size();
 
     std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
 
-    std::vector<Tensor<1, dim>> solution_gradients(n_q_points);
-    std::vector<double>         solution_dot_values(n_q_points);
+    std::vector<Tensor<1, dim>> solution_gradient_template(num_solution_components);
+    Vector<double> solution_values_template(num_solution_components);
+
+    std::vector<std::vector<Tensor<1, dim>>> solution_gradients(n_q_points, solution_gradient_template);
+    std::vector<Vector<double>>         solution_dot_values(n_q_points, solution_values_template);
+    std::vector<Vector<double>>         solution_values(n_q_points, solution_values_template);
+
+    std::vector<double> temperature_values(n_q_points);
+    std::vector<double> cohesion_values(n_q_points);
+    std::vector<double> alpha_values(n_q_points);
+    std::vector<double> sigma_values(n_q_points);
 
     Vector<double> cell_residual(dofs_per_cell);
 
@@ -335,6 +390,18 @@ namespace Step86
                                            solution_gradients);
           fe_values.get_function_values(locally_relevant_solution_dot,
                                         solution_dot_values);
+          fe_values.get_function_values(locally_relevant_solution,
+                                        solution_values);
+          
+          fe_values[temperature_extractor].get_function_values(
+            locally_relevant_solution, temperature_values);
+          fe_values[cohesion_extractor].get_function_values(
+            locally_relevant_solution, cohesion_values);
+          for (const auto& q : fe_values.quadrature_point_indices())
+            {
+              alpha_values[q] = alpha(temperature_values[q], cohesion_values[q]);
+              sigma_values[q] = sigma(temperature_values[q], cohesion_values[q]);
+            } 
 
           cell->get_dof_indices(local_dof_indices);
 
@@ -342,17 +409,30 @@ namespace Step86
           for (const unsigned int q : fe_values.quadrature_point_indices())
             for (const unsigned int i : fe_values.dof_indices())
               {
-                cell_residual(i) +=
-                  (fe_values.shape_value(i, q) *       // [phi_i(x_q) *
-                     solution_dot_values[q]            //  u(x_q) // IS THIS NOT dot u(x_q)? THE DOCUMENTATION ALSO NEEDS CORRECTING
-                   +                                   //  +
-                   fe_values.shape_grad(i, q) *        //  grad phi_i(x_q) *
-                     solution_gradients[q]             //  grad u(x_q)
-                   -                                   //  -
-                   fe_values.shape_value(i, q) *       //  phi_i(x_q) *
-                     right_hand_side_function.value(   //
-                       fe_values.quadrature_point(q))) //  f(x_q)]
-                  * fe_values.JxW(q);                  // * dx
+                if (fe.system_to_component_index(i).first == temperature_index)
+                  {
+                    cell_residual[i] += (
+                      fe_values.shape_value(i, q) *               //  [phi_i(x_q) *
+                      solution_dot_values[q](temperature_index)   //   dot u(x_q)
+                      +                                           //   +
+                      fe_values.shape_grad(i, q) *                //   grad phi_i(x_q) *
+                      alpha_values[q] *                           //   alpha_q *
+                      solution_gradients[q][temperature_index]    //   grad u(x_q)
+                      -                                           //   -
+                      fe_values.shape_value(i, q) *               //   phi_i(x_q) *
+                      right_hand_side_function.value(             //   f(x_q)
+                          fe_values.quadrature_point(q))          //   
+                    ) * fe_values.JxW(q);                         //  ] * dx
+                  }
+                else if (fe.system_to_component_index(i).first == cohesion_index)
+                  {
+                    cell_residual[i] += (
+                      fe_values.shape_value(i, q) *               //  [phi_i(x_q) *
+                      solution_dot_values[q](cohesion_index)      //   dot theta(x_q)
+                      -                                           //   -
+                      sigma_values[q]                             //   sigma_q
+                    ) * fe_values.JxW(q);                         //  ] * dx
+                  }
               }
           current_constraints.distribute_local_to_global(cell_residual,
                                                          local_dof_indices,
@@ -364,9 +444,9 @@ namespace Step86
       if (locally_owned_dofs.is_element(c.index))
         {
           if (c.entries.empty()) /* no dependencies -> a Dirichlet node */
-            residual[c.index] = y[c.index] - tmp_solution[c.index];
+            residual[c.index] = solution[c.index] - tmp_solution[c.index];
           else /* has dependencies -> a hanging node */
-            residual[c.index] = y[c.index];
+            residual[c.index] = solution[c.index];
         }
     residual.compress(VectorOperation::insert);
   }
@@ -375,11 +455,15 @@ namespace Step86
   template <int dim>
   void HeatEquation<dim>::assemble_implicit_jacobian(
     const double /* time */,
-    const PETScWrappers::MPI::Vector & /* y */,
-    const PETScWrappers::MPI::Vector & /* y_dot */,
-    const double alpha)
+    const PETScWrappers::MPI::Vector & /* solution */,
+    const PETScWrappers::MPI::Vector & /* solution_dot */,
+    const double beta)
   {
     TimerOutput::Scope t(computing_timer, "assemble implicit Jacobian");
+
+    PETScWrappers::MPI::Vector locally_relevant_solution(locally_owned_dofs,
+                                                         locally_relevant_dofs,
+                                                         mpi_communicator);
 
     const QGauss<dim> quadrature_formula(fe.degree + 1);
     FEValues<dim>     fe_values(fe,
@@ -388,8 +472,19 @@ namespace Step86
                               update_quadrature_points | update_JxW_values);
 
     const unsigned int dofs_per_cell = fe.n_dofs_per_cell();
+    const unsigned int n_q_points    = quadrature_formula.size();
 
     std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
+
+    std::vector<Tensor<1, dim>> solution_gradient_template(num_solution_components);
+    
+    std::vector<std::vector<Tensor<1, dim>>> solution_gradients(n_q_points, solution_gradient_template);
+
+    std::vector<double> temperature_values(n_q_points);
+    std::vector<double> cohesion_values(n_q_points);
+    std::vector<double> alpha_values(n_q_points);
+    std::vector<double> alpha_prime_values(n_q_points);
+    std::vector<double> sigma_prime_values(n_q_points);
 
     FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
 
@@ -399,6 +494,20 @@ namespace Step86
         {
           fe_values.reinit(cell);
 
+          fe_values.get_function_gradients(locally_relevant_solution,
+            solution_gradients);
+          
+          fe_values[temperature_extractor].get_function_values(
+            locally_relevant_solution, temperature_values);
+          fe_values[cohesion_extractor].get_function_values(
+            locally_relevant_solution, cohesion_values);
+          for (const auto& q : fe_values.quadrature_point_indices())
+            {
+              alpha_values[q] = alpha(temperature_values[q], cohesion_values[q]);
+              alpha_prime_values[q] = alpha_prime(temperature_values[q], cohesion_values[q]);
+              sigma_prime_values[q] = sigma_prime(temperature_values[q], cohesion_values[q]);
+            }
+
           cell->get_dof_indices(local_dof_indices);
 
           cell_matrix = 0;
@@ -406,14 +515,33 @@ namespace Step86
             for (const unsigned int i : fe_values.dof_indices())
               for (const unsigned int j : fe_values.dof_indices())
                 {
-                  cell_matrix(i, j) +=
-                    (fe_values.shape_grad(i, q) *      // grad phi_i(x_q) *
-                       fe_values.shape_grad(j, q)      // grad phi_j(x_q)
-                     + alpha *                         //
-                         fe_values.shape_value(i, q) * // phi_i(x_q) *
-                         fe_values.shape_value(j, q)   // phi_j(x_q)
-                     ) *
-                    fe_values.JxW(q); // * dx
+                  if (fe.system_to_component_index(i).first == temperature_index)
+                    {
+                      cell_matrix[i][j] += (
+                        beta *                                      //  [beta *
+                        fe_values.shape_value(i, q) *               //   phi_i(x_q) *
+                        fe_values.shape_value(j, q)                 //   phi_j(x_q)
+                        +                                           //   +
+                        fe_values.shape_grad(i, q) * (              //   grad phi_i(x_q) *
+                          alpha_values[q] *                         //   [alpha_q *
+                          fe_values.shape_grad(j, q)                //    grad phi_j(x_q)
+                          +                                         //    +
+                          alpha_prime_values[q] *                   //    alpha_prime_q
+                          solution_gradients[q][temperature_index]  //    grad u(x_q)
+                        )                                           //   ]
+                      ) * fe_values.JxW(q);                         //  ] * dx
+                    }
+                  else if (fe.system_to_component_index(i).first == cohesion_index)
+                    {
+                      cell_matrix[i][j] += (
+                        beta *                                      //  [beta
+                        fe_values.shape_value(i, q) *               //   phi_i(x_q) *
+                        fe_values.shape_value(j, q)                 //   phi_j(x_q)
+                        -                                           //   -
+                        fe_values.shape_value(i, q) *               //   phi_i(x_q) *
+                        sigma_prime_values[q]                       //   sigma_prime_q
+                      ) * fe_values.JxW(q);                         //  ] * dx
+                    }
                 }
           current_constraints.distribute_local_to_global(cell_matrix,
                                                          local_dof_indices,
@@ -456,12 +584,12 @@ namespace Step86
 
   template <int dim>
   void HeatEquation<dim>::prepare_for_coarsening_and_refinement(
-    const PETScWrappers::MPI::Vector &y)
+    const PETScWrappers::MPI::Vector &solution)
   {
     PETScWrappers::MPI::Vector locally_relevant_solution(locally_owned_dofs,
                                                          locally_relevant_dofs,
                                                          mpi_communicator);
-    locally_relevant_solution = y;
+    locally_relevant_solution = solution;
 
     Vector<float> estimated_error_per_cell(triangulation.n_active_cells());
     KellyErrorEstimator<dim>::estimate(dof_handler,
@@ -542,7 +670,7 @@ namespace Step86
         current_constraints.merge(hanging_nodes_constraints);
         VectorTools::interpolate_boundary_values(dof_handler,
                                                  0,
-                                                 boundary_values_function,
+                                                 Functions::ZeroFunction<dim>(num_solution_components), // CURRENTLY OVERRIDING BOUNDARY FUNC
                                                  current_constraints);
         current_constraints.make_consistent_in_parallel(locally_owned_dofs,
                                                         locally_relevant_dofs,
@@ -571,17 +699,17 @@ namespace Step86
 
 
     petsc_ts.implicit_function = [&](const double                      time,
-                                     const PETScWrappers::MPI::Vector &y,
-                                     const PETScWrappers::MPI::Vector &y_dot,
+                                     const PETScWrappers::MPI::Vector &solution,
+                                     const PETScWrappers::MPI::Vector &solution_dot,
                                      PETScWrappers::MPI::Vector       &res) {
-      this->implicit_function(time, y, y_dot, res);
+      this->implicit_function(time, solution, solution_dot, res);
     };
 
     petsc_ts.setup_jacobian = [&](const double                      time,
-                                  const PETScWrappers::MPI::Vector &y,
-                                  const PETScWrappers::MPI::Vector &y_dot,
-                                  const double                      alpha) {
-      this->assemble_implicit_jacobian(time, y, y_dot, alpha);
+                                  const PETScWrappers::MPI::Vector &solution,
+                                  const PETScWrappers::MPI::Vector &solution_dot,
+                                  const double                      beta) {
+      this->assemble_implicit_jacobian(time, solution, solution_dot, beta);
     };
 
     petsc_ts.solve_with_jacobian = [&](const PETScWrappers::MPI::Vector &src,
@@ -598,22 +726,22 @@ namespace Step86
     };
 
     petsc_ts.update_constrained_components =
-      [&](const double time, PETScWrappers::MPI::Vector &y) {
+      [&](const double time, PETScWrappers::MPI::Vector &solution) {
         TimerOutput::Scope t(computing_timer, "set algebraic components");
         update_current_constraints(time);
-        current_constraints.distribute(y);
+        current_constraints.distribute(solution);
       };
 
 
     petsc_ts.decide_and_prepare_for_remeshing =
       [&](const double /* time */,
           const unsigned int                step_number,
-          const PETScWrappers::MPI::Vector &y) -> bool {
+          const PETScWrappers::MPI::Vector &solution) -> bool {
       if (step_number > 0 && this->mesh_adaptation_frequency > 0 &&
           step_number % this->mesh_adaptation_frequency == 0)
         {
           pcout << std::endl << "Adapting the mesh..." << std::endl;
-          this->prepare_for_coarsening_and_refinement(y);
+          this->prepare_for_coarsening_and_refinement(solution);
           return true;
         }
       else
@@ -628,15 +756,15 @@ namespace Step86
       };
 
     petsc_ts.monitor = [&](const double                      time,
-                           const PETScWrappers::MPI::Vector &y,
+                           const PETScWrappers::MPI::Vector &solution,
                            const unsigned int                step_number) {
       pcout << "Time step " << step_number << " at t=" << time << std::endl;
-      this->output_results(time, step_number, y);
+      this->output_results(time, step_number, solution);
     };
 
 
     PETScWrappers::MPI::Vector solution(locally_owned_dofs, mpi_communicator);
-    VectorTools::interpolate(dof_handler, initial_value_function, solution);
+    VectorTools::interpolate(dof_handler, Functions::ZeroFunction<dim>(num_solution_components), solution); // CURRENTLY OVERRIDING INITIAL FUNC
 
     petsc_ts.solve(solution);
   }
