@@ -779,10 +779,12 @@ int main(int argc, char **argv)
 
       Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, 1);
       HeatEquation<2>                  heat_equation_solver(MPI_COMM_WORLD);
+      ConditionalOStream pcout(std::cout, (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0));
 
       const std::string input_filename =
         (argc > 1 ? argv[1] : "heat_equation.prm");
       ParameterAcceptor::initialize(input_filename, "heat_equation_used.prm");
+      pcout << "\nRunning step-86 with " << input_filename << "\n" << std::endl;
       heat_equation_solver.run();
     }
   catch (std::exception &exc)
