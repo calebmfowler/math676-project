@@ -7,6 +7,7 @@ else
     test_files="$@"
 fi
 
+make debug
 for test_file in $test_files
 do
     rm -rf solution*

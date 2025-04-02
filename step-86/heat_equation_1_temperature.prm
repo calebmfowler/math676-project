@@ -4,14 +4,14 @@ subsection Heat Equation
   set Mesh adaptation frequency      = 10
 
   subsection Right hand side
-    set Function constants  = 
-    set Function expression = 0
+    set Function constants  = r=1, pi=3.14159265
+    set Function expression = 2 * pi / r^2 * sin(pi / (2 * r^2) * (x^2 + y^2)) + pi^2 / r^4 * (x^2 + y^2) * cos(pi / (2 * r^2) * (x^2 + y^2))
     set Variable names      = x,y,t
   end
   
   subsection Initial value
-    set Function constants  = 
-    set Function expression = 0; 0
+    set Function constants  = r=1, pi=3.14159265
+    set Function expression = cos(pi / (2 * r^2) * (x^2 + y^2)); 0
     set Variable names      = x,y,t
   end
   

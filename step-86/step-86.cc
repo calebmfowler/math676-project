@@ -340,13 +340,9 @@ namespace Step86
 
     std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
 
-    std::vector<Tensor<1, dim>> solution_gradient_template(num_solution_components);
-    Vector<double> solution_values_template(num_solution_components);
-
-    std::vector<std::vector<Tensor<1, dim>>> solution_gradients(n_q_points, solution_gradient_template);
-    std::vector<Vector<double>>         solution_dot_values(n_q_points, solution_values_template);
-    std::vector<Vector<double>>         solution_values(n_q_points, solution_values_template);
-
+    std::vector<Tensor<1, dim>> temperature_gradients(n_q_points);
+    std::vector<double> temperature_dot_values(n_q_points);
+    std::vector<double> cohesion_dot_values(n_q_points);
     std::vector<double> temperature_values(n_q_points);
     std::vector<double> cohesion_values(n_q_points);
     std::vector<double> alpha_values(n_q_points);
@@ -362,13 +358,12 @@ namespace Step86
         {
           fe_values.reinit(cell);
 
-          fe_values.get_function_gradients(locally_relevant_solution,
-                                           solution_gradients);
-          fe_values.get_function_values(locally_relevant_solution_dot,
-                                        solution_dot_values);
-          fe_values.get_function_values(locally_relevant_solution,
-                                        solution_values);
-          
+          fe_values[temperature_extractor].get_function_gradients(
+            locally_relevant_solution, temperature_gradients);
+          fe_values[temperature_extractor].get_function_values(
+            locally_relevant_solution_dot, temperature_dot_values);
+          fe_values[cohesion_extractor].get_function_values(
+            locally_relevant_solution_dot, cohesion_dot_values);
           fe_values[temperature_extractor].get_function_values(
             locally_relevant_solution, temperature_values);
           fe_values[cohesion_extractor].get_function_values(
@@ -390,11 +385,11 @@ namespace Step86
                   {
                     cell_residual[i] += (
                       fe_values.shape_value(i, q) *               //  [phi_i(x_q) *
-                      solution_dot_values[q](temperature_index)   //   dot u(x_q)
+                      temperature_dot_values[q]                   //   dot u(x_q)
                       +                                           //   +
                       fe_values.shape_grad(i, q) *                //   grad phi_i(x_q) *
                       alpha_values[q] *                           //   alpha_q *
-                      solution_gradients[q][temperature_index]    //   grad u(x_q)
+                      temperature_gradients[q]                    //   grad u(x_q)
                       -                                           //   -
                       fe_values.shape_value(i, q) *               //   phi_i(x_q) *
                       right_hand_side_function.value(             //   f(x_q)
@@ -405,7 +400,7 @@ namespace Step86
                   {
                     cell_residual[i] += (
                       fe_values.shape_value(i, q) *               //  [phi_i(x_q) *
-                      solution_dot_values[q](cohesion_index)      //   dot theta(x_q)
+                      cohesion_dot_values[q]                      //   dot theta(x_q)
                       -                                           //   -
                       sigma_values[q]                             //   sigma_q
                     ) * fe_values.JxW(q);                         //  ] * dx
@@ -453,10 +448,7 @@ namespace Step86
 
     std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
 
-    std::vector<Tensor<1, dim>> solution_gradient_template(num_solution_components);
-    
-    std::vector<std::vector<Tensor<1, dim>>> solution_gradients(n_q_points, solution_gradient_template);
-
+    std::vector<Tensor<1, dim>> temperature_gradients(n_q_points);
     std::vector<double> temperature_values(n_q_points);
     std::vector<double> cohesion_values(n_q_points);
     std::vector<double> alpha_values(n_q_points);
@@ -471,9 +463,8 @@ namespace Step86
         {
           fe_values.reinit(cell);
 
-          fe_values.get_function_gradients(locally_relevant_solution,
-            solution_gradients);
-          
+          fe_values[temperature_extractor].get_function_gradients(
+            locally_relevant_solution, temperature_gradients);
           fe_values[temperature_extractor].get_function_values(
             locally_relevant_solution, temperature_values);
           fe_values[cohesion_extractor].get_function_values(
@@ -503,9 +494,9 @@ namespace Step86
                         fe_values.shape_grad(i, q) * (              //   grad phi_i(x_q) *
                           alpha_values[q] *                         //   [alpha_q *
                           fe_values.shape_grad(j, q)                //    grad phi_j(x_q)
-                          +                                         //    +
-                          alpha_prime_values[q] *                   //    alpha_prime_q
-                          solution_gradients[q][temperature_index]  //    grad u(x_q)
+                          // +                                         //    +
+                          // alpha_prime_values[q] *                   //    alpha_prime_q
+                          // temperature_gradients[q]                  //    grad u(x_q)
                         )                                           //   ]
                       ) * fe_values.JxW(q);                         //  ] * dx
                     }
@@ -515,9 +506,9 @@ namespace Step86
                         beta *                                      //  [beta
                         fe_values.shape_value(i, q) *               //   phi_i(x_q) *
                         fe_values.shape_value(j, q)                 //   phi_j(x_q)
-                        -                                           //   -
-                        fe_values.shape_value(i, q) *               //   phi_i(x_q) *
-                        sigma_prime_values[q]                       //   sigma_prime_q
+                        // -                                           //   -
+                        // fe_values.shape_value(i, q) *               //   phi_i(x_q) *
+                        // sigma_prime_values[q]                       //   sigma_prime_q
                       ) * fe_values.JxW(q);                         //  ] * dx
                     }
                 }
@@ -539,6 +530,7 @@ namespace Step86
                                          PETScWrappers::MPI::Vector       &dst)
   {
     TimerOutput::Scope t(computing_timer, "solve with Jacobian");
+    pcout << "Beginning solve_with_jacobian" << std::endl; // DEBUGGING
 
 #if defined(PETSC_HAVE_HYPRE)
     PETScWrappers::PreconditionBoomerAMG preconditioner;
@@ -549,10 +541,12 @@ namespace Step86
       jacobian_matrix, PETScWrappers::PreconditionSSOR::AdditionalData(1.0));
 #endif
 
+    pcout << "Configuring solver control" << std::endl; // DEBUGGING
     SolverControl           solver_control(1000, 1e-8 * src.l2_norm());
     PETScWrappers::SolverCG cg(solver_control);
     cg.set_prefix("user_");
 
+    pcout << "Calling solve" << std::endl; // DEBUGGING
     cg.solve(jacobian_matrix, dst, src, preconditioner);
 
     pcout << "     " << solver_control.last_step() << " linear iterations."
@@ -680,6 +674,7 @@ namespace Step86
                                      const PETScWrappers::MPI::Vector &solution,
                                      const PETScWrappers::MPI::Vector &solution_dot,
                                      PETScWrappers::MPI::Vector       &res) {
+      pcout << "petsc_ts.implicit_function" << std::endl; // DEBUGGING
       this->implicit_function(time, solution, solution_dot, res);
     };
 
@@ -687,15 +682,18 @@ namespace Step86
                                   const PETScWrappers::MPI::Vector &solution,
                                   const PETScWrappers::MPI::Vector &solution_dot,
                                   const double                      beta) {
+      pcout << "petsc_ts.setup_jacobian" << std::endl; // DEBUGGING
       this->assemble_implicit_jacobian(time, solution, solution_dot, beta);
     };
 
     petsc_ts.solve_with_jacobian = [&](const PETScWrappers::MPI::Vector &src,
                                        PETScWrappers::MPI::Vector       &dst) {
+      pcout << "petsc_ts.solve_with_jacobian" << std::endl; // DEBUGGING
       this->solve_with_jacobian(src, dst);
     };
 
     petsc_ts.algebraic_components = [&]() {
+      pcout << "petsc_ts.algebraic_components" << std::endl; // DEBUGGING
       IndexSet algebraic_set(dof_handler.n_dofs());
       algebraic_set.add_indices(DoFTools::extract_boundary_dofs(dof_handler));
       algebraic_set.add_indices(
@@ -705,6 +703,7 @@ namespace Step86
 
     petsc_ts.update_constrained_components =
       [&](const double time, PETScWrappers::MPI::Vector &solution) {
+        pcout << "petsc_ts.update_constrained_components" << std::endl; // DEBUGGING
         TimerOutput::Scope t(computing_timer, "set algebraic components");
         update_current_constraints(time);
         current_constraints.distribute(solution);
@@ -715,6 +714,7 @@ namespace Step86
       [&](const double /* time */,
           const unsigned int                step_number,
           const PETScWrappers::MPI::Vector &solution) -> bool {
+      pcout << "petsc_ts.decide_and_prepare_for_remeshing" << std::endl; // DEBUGGING
       if (step_number > 0 && this->mesh_adaptation_frequency > 0 &&
           step_number % this->mesh_adaptation_frequency == 0)
         {
@@ -730,12 +730,14 @@ namespace Step86
       [&](const double                                   time,
           const std::vector<PETScWrappers::MPI::Vector> &all_in,
           std::vector<PETScWrappers::MPI::Vector>       &all_out) {
+        pcout << "petsc_ts.transfer_solution_vectors_to_new_mesh" << std::endl; // DEBUGGING
         this->transfer_solution_vectors_to_new_mesh(time, all_in, all_out);
       };
 
     petsc_ts.monitor = [&](const double                      time,
                            const PETScWrappers::MPI::Vector &solution,
                            const unsigned int                step_number) {
+      pcout << "petsc_ts.monitor" << std::endl; // DEBUGGING
       pcout << "Time step " << step_number << " at t=" << time << std::endl;
       this->output_results(time, step_number, solution);
     };
