@@ -17,7 +17,7 @@
  *   Stefano Zampini, King Abdullah University of Science and Technology, 2024
  */
 
-
+#include <mpi.h>
 #include <deal.II/base/exceptions.h>
 #include <deal.II/base/utilities.h>
 #include <deal.II/base/quadrature_lib.h>
