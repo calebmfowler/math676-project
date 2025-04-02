@@ -2,20 +2,40 @@ subsection Heat Equation
   set Initial global refinement      = 4
   set Maximum delta refinement level = 3
   set Mesh adaptation frequency      = 10
+  subsection Alpha
+    set Function constants  = 
+    set Function expression = 1
+    set Variable names      = u,t
+  end
+  subsection Alpha prime
+    set Function constants  = 
+    set Function expression = 0
+    set Variable names      = u,t
+  end
   subsection Boundary values
     set Function constants  = 
-    set Function expression = 0, 0
+    set Function expression = 0; 0
     set Variable names      = x,y,t
   end
   subsection Initial value
     set Function constants  = 
-    set Function expression = 0, 0
+    set Function expression = 0; 0
     set Variable names      = x,y,t
   end
   subsection Right hand side
     set Function constants  = 
     set Function expression = 0
     set Variable names      = x,y,t
+  end
+  subsection Sigma
+    set Function constants  = 
+    set Function expression = 0
+    set Variable names      = u,t
+  end
+  subsection Sigma prime
+    set Function constants  = 
+    set Function expression = 0
+    set Variable names      = u,t
   end
   subsection Time stepper
     subsection Error control
@@ -27,8 +47,8 @@ subsection Heat Equation
       set relative error tolerance = -1
     end
     subsection Running parameters
-      set final time              = 0.01
-      set initial step size       = 0.01
+      set final time              = 0.025
+      set initial step size       = 0.0025
       set initial time            = 0
       set match final time        = false
       set maximum number of steps = -1
