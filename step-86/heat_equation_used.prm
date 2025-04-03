@@ -24,7 +24,7 @@ subsection Heat Equation
   end
   subsection Right hand side
     set Function constants  = 
-    set Function expression = 0
+    set Function expression = if(sqrt((x - 0.5 * cos(pi * t))^2 + (y - 0.5 * sin(pi * t))^2) < 0.125, 100, 0)
     set Variable names      = x,y,t
   end
   subsection Sigma
@@ -34,7 +34,7 @@ subsection Heat Equation
   end
   subsection Sigma prime
     set Function constants  = 
-    set Function expression = 0
+    set Function expression = 100 * (1 - t) / (1 + exp(-(u - 0.5)))
     set Variable names      = u,t
   end
   subsection Time stepper
@@ -47,7 +47,7 @@ subsection Heat Equation
       set relative error tolerance = -1
     end
     subsection Running parameters
-      set final time              = 0.025
+      set final time              = 0.25
       set initial step size       = 0.0025
       set initial time            = 0
       set match final time        = false

@@ -41,7 +41,7 @@ subsection Heat Equation
 
   subsection Sigma prime
     set Function constants  = 
-    set Function expression = 0
+    set Function expression = 100 * (1 - t) / (1 + exp(-(u - 0.5)))
     set Variable names      = u,t
   end
   

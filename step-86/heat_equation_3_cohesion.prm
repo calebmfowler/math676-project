@@ -11,13 +11,13 @@ subsection Heat Equation
   
   subsection Initial value
     set Function constants  = 
-    set Function expression = 0; 0
+    set Function expression = 0; 1
     set Variable names      = x,y,t
   end
   
   subsection Boundary values
     set Function constants  = 
-    set Function expression = 0; 0
+    set Function expression = 0; exp(t)
     set Variable names      = x,y,t
   end
 
@@ -35,20 +35,20 @@ subsection Heat Equation
 
   subsection Sigma
     set Function constants  = 
-    set Function expression = 0
+    set Function expression = t
     set Variable names      = u,t
   end
 
   subsection Sigma prime
     set Function constants  = 
-    set Function expression = 0
+    set Function expression = 1
     set Variable names      = u,t
   end
 
   subsection Time stepper
     subsection Running parameters
-      set final time              = 0.025
-      set initial step size       = 0.0025
+      set final time              = 1
+      set initial step size       = 0.05
       set initial time            = 0
       set match final time        = false
       set maximum number of steps = -1

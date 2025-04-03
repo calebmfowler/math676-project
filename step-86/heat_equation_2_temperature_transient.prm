@@ -5,13 +5,13 @@ subsection Heat Equation
 
   subsection Right hand side
     set Function constants  = r=1, pi=3.14159265
-    set Function expression = 2 * pi / r^2 * sin(pi / (2 * r^2) * (x^2 + y^2)) + pi^2 / r^4 * (x^2 + y^2) * cos(pi / (2 * r^2) * (x^2 + y^2))
+    set Function expression = 2 * pi / r^2 * t * sin(pi / (2 * r^2) * (x^2 + y^2)) + (pi^2 / r^4 * t * (x^2 + y^2) + 1 ) * cos(pi / (2 * r^2) * (x^2 + y^2))
     set Variable names      = x,y,t
   end
   
   subsection Initial value
-    set Function constants  = r=1, pi=3.14159265
-    set Function expression = cos(pi / (2 * r^2) * (x^2 + y^2)); 0
+    set Function constants  =
+    set Function expression = 0; 0
     set Variable names      = x,y,t
   end
   
@@ -47,8 +47,8 @@ subsection Heat Equation
 
   subsection Time stepper
     subsection Running parameters
-      set final time              = 0.025
-      set initial step size       = 0.0025
+      set final time              = 1
+      set initial step size       = 0.05
       set initial time            = 0
       set match final time        = false
       set maximum number of steps = -1
