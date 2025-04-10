@@ -345,6 +345,7 @@ namespace Step86
     std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
 
     std::vector<Tensor<1, dim>> temperature_gradients(n_q_points);
+    std::vector<Tensor<1, dim>> cohesion_gradients(n_q_points);
     std::vector<double> temperature_dot_values(n_q_points);
     std::vector<double> cohesion_dot_values(n_q_points);
     std::vector<double> temperature_values(n_q_points);
@@ -364,6 +365,8 @@ namespace Step86
 
           fe_values[temperature_extractor].get_function_gradients(
             locally_relevant_solution, temperature_gradients);
+            fe_values[cohesion_extractor].get_function_gradients(
+              locally_relevant_solution, cohesion_gradients);
           fe_values[temperature_extractor].get_function_values(
             locally_relevant_solution_dot, temperature_dot_values);
           fe_values[cohesion_extractor].get_function_values(
@@ -402,6 +405,21 @@ namespace Step86
                   }
                 else if (fe.system_to_component_index(i).first == cohesion_index)
                   {
+                    //*
+                    cell_residual[i] += (
+                      fe_values[cohesion_extractor].value(i, q) *       // [phi_i(x_q) *
+                      cohesion_dot_values[q]                            //  dot theta(x_q)
+                      +                                                 //  +
+                      fe_values[cohesion_extractor].gradient(i, q) *    //  grad phi_i(x_q) *
+                      alpha_values[q] *                                 //  alpha_q *
+                      cohesion_gradients[q]                             //  grad theta(x_q)
+                      -                                                 //  -
+                      fe_values[cohesion_extractor].value(i, q) *       //  phi_i(x_q) *
+                      right_hand_side_function.value(                   //  f(
+                          fe_values.quadrature_point(q))                //    x_q)
+                    ) * fe_values.JxW(q);                               // ] * dx
+                    //*/
+                    /*
                     cell_residual[i] += (
                       fe_values[cohesion_extractor].value(i, q) *       //  [phi_i(x_q) *
                       cohesion_dot_values[q]                            //   dot theta(x_q)
@@ -409,6 +427,7 @@ namespace Step86
                       fe_values[cohesion_extractor].value(i, q) *       //   phi_i(x_q) *
                       sigma_values[q]                                   //   sigma_q
                     ) * fe_values.JxW(q);                               //  ] * dx
+                    //*/
                   }
               }
           current_constraints.distribute_local_to_global(cell_residual,
@@ -525,7 +544,7 @@ namespace Step86
                           +                                                   //   +
                           alpha_prime_values[q] *                             //   alpha_prime_q *
                           fe_values[cohesion_extractor].value(j, q) *         //   phi_j(x_q) *
-                          temperature_gradients[q]                            //   grad u(x_q)
+                          cohesion_gradients[q]                               //   grad theta(x_q)
                         )                                                     //  ]
                       ) * fe_values.JxW(q);
                       //*/
