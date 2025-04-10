@@ -17,32 +17,32 @@ subsection Heat Equation
   
   subsection Boundary values
     set Function constants  = 
-    set Function expression = 0; 0 # Only the first BC, cooresponding to temperature, is enforced
+    set Function expression = 0; 0
     set Variable names      = x,y,t
   end
 
   subsection Alpha
     set Function constants  = 
     set Function expression = 1
-    set Variable names      = u,t
+    set Variable names      = u,theta
   end
 
   subsection Alpha prime
     set Function constants  = 
     set Function expression = 0
-    set Variable names      = u,t
+    set Variable names      = u,theta
   end
 
   subsection Sigma
     set Function constants  = 
     set Function expression = 0
-    set Variable names      = u,t
+    set Variable names      = u,theta
   end
 
   subsection Sigma prime
     set Function constants  = 
     set Function expression = 0
-    set Variable names      = u,t
+    set Variable names      = u,theta
   end
 
   subsection Time stepper

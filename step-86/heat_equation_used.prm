@@ -5,12 +5,12 @@ subsection Heat Equation
   subsection Alpha
     set Function constants  = 
     set Function expression = 1
-    set Variable names      = u,t
+    set Variable names      = u,theta
   end
   subsection Alpha prime
     set Function constants  = 
     set Function expression = 0
-    set Variable names      = u,t
+    set Variable names      = u,theta
   end
   subsection Boundary values
     set Function constants  = 
@@ -23,19 +23,19 @@ subsection Heat Equation
     set Variable names      = x,y,t
   end
   subsection Right hand side
-    set Function constants  = 
-    set Function expression = if(sqrt((x - 0.5 * cos(pi * t))^2 + (y - 0.5 * sin(pi * t))^2) < 0.125, 100, 0)
+    set Function constants  = r=1, pi=3.14159265
+    set Function expression = 2 * pi / r^2 * t * sin(pi / (2 * r^2) * (x^2 + y^2)) + (pi^2 / r^4 * t * (x^2 + y^2) + 1 ) * cos(pi / (2 * r^2) * (x^2 + y^2))
     set Variable names      = x,y,t
   end
   subsection Sigma
     set Function constants  = 
     set Function expression = 0
-    set Variable names      = u,t
+    set Variable names      = u,theta
   end
   subsection Sigma prime
     set Function constants  = 
-    set Function expression = 100 * (1 - t) / (1 + exp(-(u - 0.5)))
-    set Variable names      = u,t
+    set Function expression = 0
+    set Variable names      = u,theta
   end
   subsection Time stepper
     subsection Error control
@@ -47,8 +47,8 @@ subsection Heat Equation
       set relative error tolerance = -1
     end
     subsection Running parameters
-      set final time              = 0.25
-      set initial step size       = 0.0025
+      set final time              = 1
+      set initial step size       = 0.05
       set initial time            = 0
       set match final time        = false
       set maximum number of steps = -1

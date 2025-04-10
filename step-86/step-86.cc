@@ -87,6 +87,7 @@ namespace Step86
     const FEValuesExtractors::Scalar          temperature_extractor;
     const FEValuesExtractors::Scalar          cohesion_extractor;
     const ComponentMask                       temperature_component_mask;
+    const ComponentMask                       cohesion_component_mask;
     DoFHandler<dim>                           dof_handler;
 
     IndexSet locally_owned_dofs;
@@ -171,6 +172,7 @@ namespace Step86
     , temperature_extractor(temperature_index)
     , cohesion_extractor(cohesion_index)
     , temperature_component_mask(fe.component_mask(temperature_extractor))
+    , cohesion_component_mask(fe.component_mask(cohesion_extractor))
     , dof_handler(triangulation)
     , time_stepper_data("",
                         "beuler",
@@ -182,7 +184,7 @@ namespace Step86
     , mesh_adaptation_frequency(0)
     , right_hand_side_function("/Heat Equation/Right hand side")
     , initial_value_function("/Heat Equation/Initial value", num_solution_components)
-    , boundary_values_function("/Heat Equation/Boundary values", num_solution_components) // Only the first BC, cooresponding to temperature, is enforced
+    , boundary_values_function("/Heat Equation/Boundary values", num_solution_components)
     , alpha("/Heat Equation/Alpha")
     , alpha_prime("/Heat Equation/Alpha prime")
     , sigma("/Heat Equation/Sigma")
@@ -246,8 +248,7 @@ namespace Step86
     VectorTools::interpolate_boundary_values(dof_handler,
                                              0,
                                              Functions::ZeroFunction<dim>(num_solution_components),
-                                             homogeneous_constraints,
-                                             temperature_component_mask);
+                                             homogeneous_constraints);
     homogeneous_constraints.make_consistent_in_parallel(locally_owned_dofs,
                                                         locally_relevant_dofs,
                                                         mpi_communicator);
@@ -453,6 +454,7 @@ namespace Step86
     std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
 
     std::vector<Tensor<1, dim>> temperature_gradients(n_q_points);
+    std::vector<Tensor<1, dim>> cohesion_gradients(n_q_points);
     std::vector<double> temperature_values(n_q_points);
     std::vector<double> cohesion_values(n_q_points);
     std::vector<double> alpha_values(n_q_points);
@@ -469,6 +471,8 @@ namespace Step86
 
           fe_values[temperature_extractor].get_function_gradients(
             locally_relevant_solution, temperature_gradients);
+          fe_values[cohesion_extractor].get_function_gradients(
+            locally_relevant_solution, cohesion_gradients);
           fe_values[temperature_extractor].get_function_values(
             locally_relevant_solution, temperature_values);
           fe_values[cohesion_extractor].get_function_values(
@@ -509,7 +513,23 @@ namespace Step86
                   else if (fe.system_to_component_index(i).first == cohesion_index
                            && fe.system_to_component_index(j).first == cohesion_index)
                     {
+                      //*
                       cell_matrix[i][j] += (
+                        beta *                                                // [beta *
+                        fe_values[cohesion_extractor].value(i, q) *           //  phi_i(x_q) *
+                        fe_values[cohesion_extractor].value(j, q)             //  phi_j(x_q)
+                        +                                                     //  +
+                        fe_values[cohesion_extractor].gradient(i, q) * (      //  grad phi_i(x_q) *
+                          alpha_values[q] *                                   //  [alpha_q *
+                          fe_values[cohesion_extractor].gradient(j, q)        //   grad phi_j(x_q)
+                          +                                                   //   +
+                          alpha_prime_values[q] *                             //   alpha_prime_q *
+                          fe_values[cohesion_extractor].value(j, q) *         //   phi_j(x_q) *
+                          temperature_gradients[q]                            //   grad u(x_q)
+                        )                                                     //  ]
+                      ) * fe_values.JxW(q);
+                      //*/
+                      /*cell_matrix[i][j] += (
                         beta *                                                // [beta
                         fe_values[cohesion_extractor].value(i, q) *           //  phi_i(x_q) *
                         fe_values[cohesion_extractor].value(j, q)             //  phi_j(x_q)
@@ -518,6 +538,7 @@ namespace Step86
                         sigma_prime_values[q] *                               //  sigma_prime_q *
                         fe_values[cohesion_extractor].value(j, q)             //  phi_j(x_q)
                       ) * fe_values.JxW(q);                                   // ] * dx
+                      //*/
                     }
                 }
           current_constraints.distribute_local_to_global(cell_matrix,
@@ -650,6 +671,11 @@ namespace Step86
                                                  boundary_values_function,
                                                  current_constraints,
                                                  temperature_component_mask);
+        VectorTools::interpolate_boundary_values(dof_handler,
+                                                 0,
+                                                 boundary_values_function,
+                                                 current_constraints,
+                                                 cohesion_component_mask);
         current_constraints.make_consistent_in_parallel(locally_owned_dofs,
                                                         locally_relevant_dofs,
                                                         mpi_communicator);
@@ -702,6 +728,7 @@ namespace Step86
       // pcout << "petsc_ts.algebraic_components" << std::endl; // DEBUGGING
       IndexSet algebraic_set(dof_handler.n_dofs());
       algebraic_set.add_indices(DoFTools::extract_boundary_dofs(dof_handler, temperature_component_mask));
+      algebraic_set.add_indices(DoFTools::extract_boundary_dofs(dof_handler, cohesion_component_mask));
       algebraic_set.add_indices(
         DoFTools::extract_hanging_node_dofs(dof_handler));
       return algebraic_set;
@@ -751,14 +778,6 @@ namespace Step86
 
     PETScWrappers::MPI::Vector solution(locally_owned_dofs, mpi_communicator);
     VectorTools::interpolate(dof_handler, initial_value_function, solution);
-
-    //*
-    PetscOptionsSetValue(NULL, "-snes_monitor", ""); // DEBUGGING
-    PetscOptionsSetValue(NULL, "-ksp_monitor", ""); // DEBUGGING
-    PetscOptionsSetValue(NULL, "-snes_view", ""); // DEBUGGING
-    PetscOptionsSetValue(NULL, "-snes_test_jacobian", ""); // DEBUGGING
-    PetscOptionsSetValue(NULL, "-log_view", ""); // DEBUGGING
-    //*/
 
     petsc_ts.solve(solution);
   }
