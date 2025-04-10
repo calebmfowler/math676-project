@@ -17,7 +17,7 @@ subsection Heat Equation
   
   subsection Boundary values
     set Function constants  = 
-    set Function expression = 0; 0
+    set Function expression = 0; 0 # Only the first BC, cooresponding to temperature, is enforced
     set Variable names      = x,y,t
   end
 
@@ -40,8 +40,8 @@ subsection Heat Equation
   end
 
   subsection Sigma prime
-    set Function constants  = 
-    set Function expression = 100 * (1 - t) / (1 + exp(-(u - 0.5)))
+    set Function constants  = m=4, s=50, ut=0.5
+    set Function expression = m * (1 - t) / (1 + exp(- s * (u - ut)))
     set Variable names      = u,t
   end
   

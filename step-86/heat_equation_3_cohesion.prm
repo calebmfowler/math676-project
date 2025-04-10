@@ -10,14 +10,14 @@ subsection Heat Equation
   end
   
   subsection Initial value
-    set Function constants  = 
-    set Function expression = 0; 1
+    set Function constants  = r=1, pi=3.14159265
+    set Function expression = 0; cos(pi / (2 * r^2) * (x^2 + y^2))
     set Variable names      = x,y,t
   end
   
   subsection Boundary values
     set Function constants  = 
-    set Function expression = 0; exp(t)
+    set Function expression = 0; 0 # Only the first BC, cooresponding to temperature, is enforced
     set Variable names      = x,y,t
   end
 
@@ -35,13 +35,13 @@ subsection Heat Equation
 
   subsection Sigma
     set Function constants  = 
-    set Function expression = t
+    set Function expression = -t
     set Variable names      = u,t
   end
 
   subsection Sigma prime
     set Function constants  = 
-    set Function expression = 1
+    set Function expression = -1
     set Variable names      = u,t
   end
 
