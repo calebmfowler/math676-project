@@ -248,7 +248,8 @@ namespace Step86
     VectorTools::interpolate_boundary_values(dof_handler,
                                              0,
                                              Functions::ZeroFunction<dim>(num_solution_components),
-                                             homogeneous_constraints);
+                                             homogeneous_constraints,
+                                             temperature_component_mask);
     homogeneous_constraints.make_consistent_in_parallel(locally_owned_dofs,
                                                         locally_relevant_dofs,
                                                         mpi_communicator);
@@ -594,13 +595,23 @@ namespace Step86
                                                          mpi_communicator);
     locally_relevant_solution = solution;
 
+    Vector<float> estimated_temperature_error(triangulation.n_active_cells());
+    Vector<float> estimated_cohesion_error(triangulation.n_active_cells());
     Vector<float> estimated_error_per_cell(triangulation.n_active_cells());
     KellyErrorEstimator<dim>::estimate(dof_handler,
                                        QGauss<dim - 1>(fe.degree + 1),
                                        {},
                                        locally_relevant_solution,
-                                       estimated_error_per_cell);
-
+                                       estimated_temperature_error,
+                                       temperature_component_mask);
+    KellyErrorEstimator<dim>::estimate(dof_handler,
+                                       QGauss<dim - 1>(fe.degree + 1),
+                                       {},
+                                       locally_relevant_solution,
+                                       estimated_cohesion_error,
+                                       cohesion_component_mask);
+    for (unsigned int i = 0; i < triangulation.n_active_cells(); ++i)
+      estimated_error_per_cell[i] = std::max(estimated_temperature_error[i], estimated_cohesion_error[i]);
     parallel::distributed::GridRefinement::refine_and_coarsen_fixed_fraction(
       triangulation, estimated_error_per_cell, 0.6, 0.4);
 
@@ -676,11 +687,6 @@ namespace Step86
                                                  boundary_values_function,
                                                  current_constraints,
                                                  temperature_component_mask);
-        VectorTools::interpolate_boundary_values(dof_handler,
-                                                 0,
-                                                 boundary_values_function,
-                                                 current_constraints,
-                                                 cohesion_component_mask);
         current_constraints.make_consistent_in_parallel(locally_owned_dofs,
                                                         locally_relevant_dofs,
                                                         mpi_communicator);
@@ -733,9 +739,7 @@ namespace Step86
       // pcout << "petsc_ts.algebraic_components" << std::endl; // DEBUGGING
       IndexSet algebraic_set(dof_handler.n_dofs());
       algebraic_set.add_indices(DoFTools::extract_boundary_dofs(dof_handler, temperature_component_mask));
-      algebraic_set.add_indices(DoFTools::extract_boundary_dofs(dof_handler, cohesion_component_mask));
-      algebraic_set.add_indices(
-        DoFTools::extract_hanging_node_dofs(dof_handler));
+      algebraic_set.add_indices(DoFTools::extract_hanging_node_dofs(dof_handler));
       return algebraic_set;
     };
 
