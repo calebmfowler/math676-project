@@ -5,13 +5,13 @@ subsection Heat Equation
 
   subsection Right hand side
     set Function constants  = r=1, pi=3.14159265
-    set Function expression = 2 * pi / r^2 * t * sin(pi / (2 * r^2) * (x^2 + y^2)) + (pi^2 / r^4 * t * (x^2 + y^2) + 1 ) * cos(pi / (2 * r^2) * (x^2 + y^2))
+    set Function expression = 2 * pi / r^2 * sin(pi / (2 * r^2) * (x^2 + y^2)) + pi^2 / r^4 * (x^2 + y^2) * cos(pi / (2 * r^2) * (x^2 + y^2))
     set Variable names      = x,y,t
   end
   
   subsection Initial value
-    set Function constants  =
-    set Function expression = 0; 0
+    set Function constants  = r=1, pi=3.14159265
+    set Function expression = cos(pi / (2 * r^2) * (x^2 + y^2)); 1
     set Variable names      = x,y,t
   end
   
@@ -27,7 +27,13 @@ subsection Heat Equation
     set Variable names      = u,theta
   end
 
-  subsection Alpha prime
+  subsection Alpha u
+    set Function constants  = 
+    set Function expression = 0
+    set Variable names      = u,theta
+  end
+
+  subsection Alpha theta
     set Function constants  = 
     set Function expression = 0
     set Variable names      = u,theta
@@ -39,7 +45,13 @@ subsection Heat Equation
     set Variable names      = u,theta
   end
 
-  subsection Sigma prime
+  subsection Sigma u
+    set Function constants  = 
+    set Function expression = 0
+    set Variable names      = u,theta
+  end
+
+  subsection Sigma theta
     set Function constants  = 
     set Function expression = 0
     set Variable names      = u,theta

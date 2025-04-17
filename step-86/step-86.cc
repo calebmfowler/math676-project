@@ -146,11 +146,15 @@ namespace Step86
     ParameterAcceptorProxy<Functions::ParsedFunction<dim>>
       alpha;
     ParameterAcceptorProxy<Functions::ParsedFunction<dim>>
-      alpha_prime;
+      alpha_u;
+    ParameterAcceptorProxy<Functions::ParsedFunction<dim>>
+      alpha_theta;
     ParameterAcceptorProxy<Functions::ParsedFunction<dim>>
       sigma;
     ParameterAcceptorProxy<Functions::ParsedFunction<dim>>
-      sigma_prime;
+      sigma_u;
+    ParameterAcceptorProxy<Functions::ParsedFunction<dim>>
+      sigma_theta;
   };
 
 
@@ -186,9 +190,11 @@ namespace Step86
     , initial_value_function("/Heat Equation/Initial value", num_solution_components)
     , boundary_values_function("/Heat Equation/Boundary values", num_solution_components)
     , alpha("/Heat Equation/Alpha")
-    , alpha_prime("/Heat Equation/Alpha prime")
+    , alpha_u("/Heat Equation/Alpha u")
+    , alpha_theta("/Heat Equation/Alpha theta")
     , sigma("/Heat Equation/Sigma")
-    , sigma_prime("/Heat Equation/Sigma prime")
+    , sigma_u("/Heat Equation/Sigma u")
+    , sigma_theta("/Heat Equation/Sigma theta")
   {
     enter_subsection("Time stepper");
     {
@@ -401,29 +407,13 @@ namespace Step86
                   right_hand_side_function.value(                   //  f(
                       fe_values.quadrature_point(q))                //    x_q)
                 ) * fe_values.JxW(q);                               // ] * dx
-                //*
                 cell_residual[i] += (
                   fe_values[cohesion_extractor].value(i, q) *       // [phi_i(x_q) *
                   cohesion_dot_values[q]                            //  dot theta(x_q)
-                  +                                                 //  +
-                  fe_values[cohesion_extractor].gradient(i, q) *    //  grad phi_i(x_q) *
-                  alpha_values[q] *                                 //  alpha_q *
-                  cohesion_gradients[q]                             //  grad theta(x_q)
-                  -                                                 //  -
-                  fe_values[cohesion_extractor].value(i, q) *       //  phi_i(x_q) *
-                  right_hand_side_function.value(                   //  f(
-                      fe_values.quadrature_point(q))                //    x_q)
-                ) * fe_values.JxW(q);                               // ] * dx
-                //*/
-                /*
-                cell_residual[i] += (
-                  fe_values[cohesion_extractor].value(i, q) *       //  [phi_i(x_q) *
-                  cohesion_dot_values[q]                            //   dot theta(x_q)
                   -                                                 //   -
                   fe_values[cohesion_extractor].value(i, q) *       //   phi_i(x_q) *
                   sigma_values[q]                                   //   sigma_q
-                ) * fe_values.JxW(q);                               //  ] * dx
-                //*/
+                ) * fe_values.JxW(q);                               // ] * dx
               }
           current_constraints.distribute_local_to_global(cell_residual,
                                                          local_dof_indices,
@@ -472,8 +462,10 @@ namespace Step86
     std::vector<double> temperature_values(n_q_points);
     std::vector<double> cohesion_values(n_q_points);
     std::vector<double> alpha_values(n_q_points);
-    std::vector<double> alpha_prime_values(n_q_points);
-    std::vector<double> sigma_prime_values(n_q_points);
+    std::vector<double> alpha_u_values(n_q_points);
+    std::vector<double> alpha_theta_values(n_q_points);
+    std::vector<double> sigma_u_values(n_q_points);
+    std::vector<double> sigma_theta_values(n_q_points);
 
     FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
 
@@ -495,8 +487,10 @@ namespace Step86
             {
               const Point<2> sol(temperature_values[q], cohesion_values[q]);
               alpha_values[q] = alpha.value(sol);
-              alpha_prime_values[q] = alpha_prime.value(sol);
-              sigma_prime_values[q] = sigma_prime.value(sol);
+              alpha_u_values[q] = alpha_u.value(sol);
+              alpha_theta_values[q] = alpha_theta.value(sol);
+              sigma_u_values[q] = sigma_u.value(sol);
+              sigma_theta_values[q] = sigma_theta.value(sol);
             }
 
           cell->get_dof_indices(local_dof_indices);
@@ -506,8 +500,8 @@ namespace Step86
             for (const unsigned int i : fe_values.dof_indices())
               for (const unsigned int j : fe_values.dof_indices())
                 {
-                  cell_matrix[i][j] += (
-                    beta *                                                // [beta *
+                  cell_matrix[i][j] += (                                  // [
+                    beta *                                                //  beta *
                     fe_values[temperature_extractor].value(i, q) *        //  phi_i(x_q) *
                     fe_values[temperature_extractor].value(j, q)          //  phi_j(x_q)
                     +                                                     //  +
@@ -515,37 +509,35 @@ namespace Step86
                       alpha_values[q] *                                   //  [alpha_q *
                       fe_values[temperature_extractor].gradient(j, q)     //   grad phi_j(x_q)
                       +                                                   //   +
-                      alpha_prime_values[q] *                             //   alpha_prime_q *
+                      alpha_u_values[q] *                                 //   alpha_u_q *
                       fe_values[temperature_extractor].value(j, q) *      //   phi_j(x_q) *
                       temperature_gradients[q]                            //   grad u(x_q)
                     )                                                     //  ]
                   ) * fe_values.JxW(q);                                   // ] * dx
-                  //*
+
+                  cell_matrix[i][j] += (                                  // [
+                    fe_values[temperature_extractor].gradient(i, q) * (   //  grad phi_i(x_q) *
+                      alpha_theta_values[q] *                             //  [alpha_theta_q *
+                      fe_values[cohesion_extractor].value(j, q) *         //   phi_j(x_q) *
+                      temperature_gradients[q]                            //   grad u(x_q)
+                    )                                                     //  ]
+                  ) * fe_values.JxW(q);                                   // ] * dx
+
+                  cell_matrix[i][j] += (                                  // [
+                    -fe_values[cohesion_extractor].value(i, q) *          //  -phi_i(x_q) *
+                    sigma_u_values[q] *                                   //  sigma_u_q *
+                    fe_values[temperature_extractor].value(j, q)             //  phi_j(x_q)
+                  ) * fe_values.JxW(q);                                   // ] * dx
+
                   cell_matrix[i][j] += (
                     beta *                                                // [beta *
                     fe_values[cohesion_extractor].value(i, q) *           //  phi_i(x_q) *
                     fe_values[cohesion_extractor].value(j, q)             //  phi_j(x_q)
-                    +                                                     //  +
-                    fe_values[cohesion_extractor].gradient(i, q) * (      //  grad phi_i(x_q) *
-                      alpha_values[q] *                                   //  [alpha_q *
-                      fe_values[cohesion_extractor].gradient(j, q)        //   grad phi_j(x_q)
-                      +                                                   //   +
-                      alpha_prime_values[q] *                             //   alpha_prime_q *
-                      fe_values[cohesion_extractor].value(j, q) *         //   phi_j(x_q) *
-                      cohesion_gradients[q]                               //   grad theta(x_q)
-                    )                                                     //  ]
-                  ) * fe_values.JxW(q);
-                  //*/
-                  /*cell_matrix[i][j] += (
-                    beta *                                                // [beta
-                    fe_values[cohesion_extractor].value(i, q) *           //  phi_i(x_q) *
-                    fe_values[cohesion_extractor].value(j, q)             //  phi_j(x_q)
                     -                                                     //  -
                     fe_values[cohesion_extractor].value(i, q) *           //  phi_i(x_q) *
-                    sigma_prime_values[q] *                               //  sigma_prime_q *
+                    sigma_theta_values[q] *                               //  sigma_prime_q *
                     fe_values[cohesion_extractor].value(j, q)             //  phi_j(x_q)
-                  ) * fe_values.JxW(q);                                   // ] * dx
-                  //*/
+                  ) * fe_values.JxW(q);
                 }
           current_constraints.distribute_local_to_global(cell_matrix,
                                                          local_dof_indices,
@@ -709,6 +701,8 @@ namespace Step86
     PETScWrappers::TimeStepper<PETScWrappers::MPI::Vector,
                                PETScWrappers::MPI::SparseMatrix>
       petsc_ts(time_stepper_data);
+    
+    PetscOptionsInsertString(NULL, "-ts_monitor -snes_monitor -ksp_monitor");
 
     petsc_ts.set_matrices(jacobian_matrix, jacobian_matrix);
 
