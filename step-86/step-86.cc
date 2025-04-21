@@ -558,20 +558,14 @@ namespace Step86
   {
     TimerOutput::Scope t(computing_timer, "solve with Jacobian");
 
-#if defined(PETSC_HAVE_HYPRE)
-    PETScWrappers::PreconditionBoomerAMG preconditioner;
+    PETScWrappers::PreconditionJacobi preconditioner; // Use Jacobi preconditioner
     preconditioner.initialize(jacobian_matrix);
-#else
-    PETScWrappers::PreconditionSSOR preconditioner;
-    preconditioner.initialize(
-      jacobian_matrix, PETScWrappers::PreconditionSSOR::AdditionalData(1.0));
-#endif
 
     SolverControl           solver_control(1000, 1e-8 * src.l2_norm());
-    PETScWrappers::SolverCG cg(solver_control);
-    cg.set_prefix("user_");
+    PETScWrappers::SolverGMRES gmres(solver_control); // Use GMRES for non-symmetric matrices
+    gmres.set_prefix("user_");
 
-    cg.solve(jacobian_matrix, dst, src, preconditioner);
+    gmres.solve(jacobian_matrix, dst, src, preconditioner);
 
     pcout << "     " << solver_control.last_step() << " linear iterations."
           << std::endl;
