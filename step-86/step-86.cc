@@ -323,7 +323,7 @@ namespace Step86
                                        const PETScWrappers::MPI::Vector &solution_dot,
                                        PETScWrappers::MPI::Vector &residual)
   {
-    TimerOutput::Scope t(computing_timer, "implicit function");
+    computing_timer.enter_subsection("implicit function - setup");
 
     PETScWrappers::MPI::Vector tmp_solution(locally_owned_dofs,
                                             mpi_communicator);
@@ -370,9 +370,11 @@ namespace Step86
     right_hand_side_function.set_time(time);
 
     residual = 0;
+    computing_timer.leave_subsection();
     for (const auto &cell : dof_handler.active_cell_iterators())
       if (cell->is_locally_owned())
         {
+          computing_timer.enter_subsection("implicit function - get cell values");
           fe_values.reinit(cell);
 
           fe_values[temperature_extractor].get_function_gradients(
@@ -396,6 +398,8 @@ namespace Step86
 
           cell->get_dof_indices(local_dof_indices);
 
+          computing_timer.leave_subsection();
+          computing_timer.enter_subsection("implicit function - residual assembly");
           cell_residual = 0;
           for (const unsigned int q : fe_values.quadrature_point_indices())
             for (const unsigned int i : fe_values.dof_indices())
@@ -423,7 +427,9 @@ namespace Step86
           current_constraints.distribute_local_to_global(cell_residual,
                                                          local_dof_indices,
                                                          residual);
+          computing_timer.leave_subsection();
         }
+    computing_timer.enter_subsection("implicit function - cleanup");
     residual.compress(VectorOperation::add);
 
     for (const auto &c : current_constraints.get_lines())
@@ -435,6 +441,7 @@ namespace Step86
             residual[c.index] = solution[c.index];
         }
     residual.compress(VectorOperation::insert);
+    computing_timer.leave_subsection();
   }
 
 
@@ -445,7 +452,7 @@ namespace Step86
     const PETScWrappers::MPI::Vector & /* solution_dot */,
     const double beta)
   {
-    TimerOutput::Scope t(computing_timer, "assemble implicit Jacobian");
+    computing_timer.enter_subsection("assemble implicit Jacobian - setup");
 
     PETScWrappers::MPI::Vector locally_relevant_solution(locally_owned_dofs,
                                                          locally_relevant_dofs,
@@ -475,9 +482,11 @@ namespace Step86
     FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
 
     jacobian_matrix = 0;
+    computing_timer.leave_subsection();
     for (const auto &cell : dof_handler.active_cell_iterators())
       if (cell->is_locally_owned())
         {
+          computing_timer.enter_subsection("assemble implicit Jacobian - get cell values");
           fe_values.reinit(cell);
 
           fe_values[temperature_extractor].get_function_gradients(
@@ -501,6 +510,8 @@ namespace Step86
           cell->get_dof_indices(local_dof_indices);
 
           cell_matrix = 0;
+          computing_timer.leave_subsection();
+          computing_timer.enter_subsection("assemble implicit Jacobian - jacobian assembly");
           for (const unsigned int q : fe_values.quadrature_point_indices())
             for (const unsigned int i : fe_values.dof_indices())
               for (const unsigned int j : fe_values.dof_indices())
@@ -547,12 +558,15 @@ namespace Step86
           current_constraints.distribute_local_to_global(cell_matrix,
                                                          local_dof_indices,
                                                          jacobian_matrix);
+          computing_timer.leave_subsection();
         }
+    computing_timer.enter_subsection("assemble implicit Jacobian - cleanup");
     jacobian_matrix.compress(VectorOperation::add);
 
     for (const auto &c : current_constraints.get_lines())
       jacobian_matrix.set(c.index, c.index, 1.0);
     jacobian_matrix.compress(VectorOperation::insert);
+    computing_timer.leave_subsection();
   }
 
 
