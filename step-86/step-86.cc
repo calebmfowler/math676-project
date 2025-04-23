@@ -133,6 +133,7 @@ namespace Step86
 
     PETScWrappers::TimeStepperData time_stepper_data;
 
+    double radius;
     unsigned int initial_global_refinement;
     unsigned int max_delta_refinement_level;
     unsigned int mesh_adaptation_frequency;
@@ -183,6 +184,7 @@ namespace Step86
                         /* start time */ 0.0,
                         /* end time */ 1.0,
                         /* initial time step */ 0.025)
+    , radius(1)
     , initial_global_refinement(5)
     , max_delta_refinement_level(2)
     , mesh_adaptation_frequency(0)
@@ -206,6 +208,9 @@ namespace Step86
     }
     leave_subsection();
 
+    add_parameter("Radius",
+                  radius,
+                  "Radius of the domain");
     add_parameter("Initial global refinement",
                   initial_global_refinement,
                   "Number of times the mesh is refined globally before "
@@ -535,7 +540,7 @@ namespace Step86
                     fe_values[cohesion_extractor].value(j, q)             //  phi_j(x_q)
                     -                                                     //  -
                     fe_values[cohesion_extractor].value(i, q) *           //  phi_i(x_q) *
-                    sigma_theta_values[q] *                               //  sigma_prime_q *
+                    sigma_theta_values[q] *                               //  sigma_theta_q *
                     fe_values[cohesion_extractor].value(j, q)             //  phi_j(x_q)
                   ) * fe_values.JxW(q);
                 }
@@ -685,7 +690,6 @@ namespace Step86
   void HeatEquation<dim>::run()
   {
     const Point<dim> center;
-    const float radius = 1;
     GridGenerator::hyper_ball(triangulation, center, radius);
     if (dim != 2) { DEAL_II_NOT_IMPLEMENTED(); }
     triangulation.refine_global(initial_global_refinement);
@@ -696,7 +700,7 @@ namespace Step86
                                PETScWrappers::MPI::SparseMatrix>
       petsc_ts(time_stepper_data);
     
-    PetscOptionsInsertString(NULL, "-ts_monitor -snes_monitor -ksp_monitor");
+    // PetscOptionsInsertString(NULL, "-ts_monitor -snes_monitor -ksp_monitor");
 
     petsc_ts.set_matrices(jacobian_matrix, jacobian_matrix);
 

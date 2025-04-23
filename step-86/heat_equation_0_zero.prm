@@ -2,6 +2,7 @@ subsection Heat Equation
   set Initial global refinement      = 4
   set Maximum delta refinement level = 3
   set Mesh adaptation frequency      = 10
+  set Radius = 1
 
   subsection Right hand side
     set Function constants  = 
