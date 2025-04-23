@@ -636,7 +636,7 @@ namespace Step86
     for (unsigned int i = 0; i < triangulation.n_active_cells(); ++i)
       estimated_error_per_cell[i] = std::max(estimated_temperature_error[i], estimated_cohesion_error[i]);
     parallel::distributed::GridRefinement::refine_and_coarsen_fixed_fraction(
-      triangulation, estimated_error_per_cell, 0.6, 0.4);
+      triangulation, estimated_error_per_cell, 0.25, 0.2);
 
     const unsigned int max_grid_level =
       initial_global_refinement + max_delta_refinement_level;
