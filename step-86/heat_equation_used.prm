@@ -1,20 +1,20 @@
 subsection Heat Equation
   set Initial global refinement      = 4
-  set Maximum delta refinement level = 3
-  set Mesh adaptation frequency      = 10
+  set Maximum delta refinement level = 2
+  set Mesh adaptation frequency      = 5
   set Radius                         = 0.004
   subsection Alpha
-    set Function constants  = k0=15, k1=0.01, rho0=8000, c0=500, dt=50, ut=1500, H=300000
+    set Function constants  = k0=15, k1=0.01, rho0=8000, c0=500, dt=100, ut=1500, H=300000
     set Function expression = (k0 + k1 * u) / (rho0) / (c0 + (H / (dt * sqrt(2 * pi))) * exp(-0.5 * ((u - ut) / dt)^2)) * theta
     set Variable names      = u,theta
   end
   subsection Alpha theta
-    set Function constants  = k0=15, k1=0.01, rho0=8000, c0=500, dt=50, ut=1500, H=300000
+    set Function constants  = k0=15, k1=0.01, rho0=8000, c0=500, dt=100, ut=1500, H=300000
     set Function expression = (k0 + k1 * u) / (rho0) / (c0 + (H / (dt* sqrt(2 * pi))) * exp(-0.5 * ((u - ut) / dt)^2))
     set Variable names      = u,theta
   end
   subsection Alpha u
-    set Function constants  = k0=15, k1=0.01, rho0=8000, c0=500, dt=50, ut=1500, H=300000
+    set Function constants  = k0=15, k1=0.01, rho0=8000, c0=500, dt=100, ut=1500, H=300000
     set Function expression = ((k1) * (c0 + (H / (dt* sqrt(2 * pi))) * exp(-0.5 * ((u - ut) / dt)^2)) + (k0 + k1 * u) * (H / (dt^3 * sqrt(2 * pi)) * (u - ut) * exp(-0.5 * ((u - ut) / dt)^2))) / (rho0) / (c0 + (H / (dt* sqrt(2 * pi))) * exp(-0.5 * ((u - ut) / dt)^2))^2 * theta
     set Variable names      = u,theta
   end
@@ -34,17 +34,17 @@ subsection Heat Equation
     set Variable names      = x,y,t
   end
   subsection Sigma
-    set Function constants  = S=2e3, dt=50, ut=1500
+    set Function constants  = S=5e2, dt=100, ut=1500
     set Function expression = S * (1 - theta) / (1 + exp(-(u - ut) / dt))
     set Variable names      = u,theta
   end
   subsection Sigma theta
-    set Function constants  = S=2e3, dt=50, ut=1500
+    set Function constants  = S=5e2, dt=100, ut=1500
     set Function expression = -S / (1 + exp(-(u - ut) / dt))
     set Variable names      = u,theta
   end
   subsection Sigma u
-    set Function constants  = S=2e3, dt=50, ut=1500
+    set Function constants  = S=5e2, dt=100, ut=1500
     set Function expression = S * (1 - theta) / dt / (1 + exp(-(u - ut) / dt))^2 * exp(-(u - ut) / dt)
     set Variable names      = u,theta
   end
@@ -58,7 +58,7 @@ subsection Heat Equation
       set relative error tolerance = -1
     end
     subsection Running parameters
-      set final time              = 0.03
+      set final time              = 0.32
       set initial step size       = 0.001
       set initial time            = 0
       set match final time        = false
