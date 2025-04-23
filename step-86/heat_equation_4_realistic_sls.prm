@@ -1,7 +1,7 @@
 subsection Heat Equation
-  set Initial global refinement      = 4
+  set Initial global refinement      = 3
   set Maximum delta refinement level = 3
-  set Mesh adaptation frequency      = 10
+  set Mesh adaptation frequency      = 5
   set Radius = 0.004
 
   subsection Right hand side
@@ -60,8 +60,8 @@ subsection Heat Equation
   
   subsection Time stepper
     subsection Running parameters
-      set final time              = 0.314
-      set initial step size       = 0.001
+      set final time              = 0.032
+      set initial step size       = 0.0005
       set initial time            = 0
       set match final time        = false
       set maximum number of steps = -1
