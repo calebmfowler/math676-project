@@ -595,7 +595,7 @@ namespace Step86
   {
     TimerOutput::Scope t(computing_timer, "solve with Jacobian");
 
-    PETScWrappers::PreconditionBlockJacobi preconditioner;
+    PETScWrappers::PreconditionJacobi preconditioner;
     preconditioner.initialize(jacobian_matrix);
 
     SolverControl           solver_control(1000, 1e-8 * src.l2_norm());

@@ -5,17 +5,17 @@ subsection Heat Equation
   set Radius                         = 0.004
   subsection Alpha
     set Function constants  = k0=15, k1=0.01, rho0=8000, c0=500, dt=100, ut=1500, H=300000
-    set Function expression = (k0 + k1 * u) / (rho0) / (c0 + (H / (dt * sqrt(2 * pi))) * exp(-0.5 * ((u - ut) / dt)^2)) * theta
+    set Function expression = (k0 + k1 * u) / (rho0) / (c0 + (H / (dt * sqrt(2 * pi))) * exp(-0.5 * ((u - ut) / dt)^2)) * max(theta, 0.01)
     set Variable names      = u,theta
   end
   subsection Alpha theta
     set Function constants  = k0=15, k1=0.01, rho0=8000, c0=500, dt=100, ut=1500, H=300000
-    set Function expression = (k0 + k1 * u) / (rho0) / (c0 + (H / (dt* sqrt(2 * pi))) * exp(-0.5 * ((u - ut) / dt)^2))
+    set Function expression = if(theta > 0.01, (k0 + k1 * u) / (rho0) / (c0 + (H / (dt* sqrt(2 * pi))) * exp(-0.5 * ((u - ut) / dt)^2)), 0)
     set Variable names      = u,theta
   end
   subsection Alpha u
     set Function constants  = k0=15, k1=0.01, rho0=8000, c0=500, dt=100, ut=1500, H=300000
-    set Function expression = ((k1) * (c0 + (H / (dt* sqrt(2 * pi))) * exp(-0.5 * ((u - ut) / dt)^2)) + (k0 + k1 * u) * (H / (dt^3 * sqrt(2 * pi)) * (u - ut) * exp(-0.5 * ((u - ut) / dt)^2))) / (rho0) / (c0 + (H / (dt* sqrt(2 * pi))) * exp(-0.5 * ((u - ut) / dt)^2))^2 * theta
+    set Function expression = ((k1) * (c0 + (H / (dt* sqrt(2 * pi))) * exp(-0.5 * ((u - ut) / dt)^2)) + (k0 + k1 * u) * (H / (dt^3 * sqrt(2 * pi)) * (u - ut) * exp(-0.5 * ((u - ut) / dt)^2))) / (rho0) / (c0 + (H / (dt* sqrt(2 * pi))) * exp(-0.5 * ((u - ut) / dt)^2))^2 * max(theta, 0.01)
     set Variable names      = u,theta
   end
   subsection Boundary values
@@ -25,7 +25,7 @@ subsection Heat Equation
   end
   subsection Initial value
     set Function constants  = 
-    set Function expression = 25; 0.005
+    set Function expression = 25; 0.01
     set Variable names      = x,y,t
   end
   subsection Right hand side
