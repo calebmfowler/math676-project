@@ -51,6 +51,7 @@
 #include <deal.II/fe/fe_system.h>
 #include <deal.II/numerics/data_out.h>
 #include <deal.II/numerics/vector_tools.h>
+#include <deal.II/numerics/vector_tools_common.h>
 #include <deal.II/numerics/error_estimator.h>
 #include <deal.II/numerics/solution_transfer.h>
 #include <deal.II/numerics/matrix_tools.h>
@@ -447,6 +448,7 @@ namespace Step86
             residual[c.index] = solution[c.index];
         }
     residual.compress(VectorOperation::insert);
+    // pcout << "          residual norm = " << residual.l2_norm() << std::endl;
     computing_timer.leave_subsection();
   }
 
@@ -598,7 +600,7 @@ namespace Step86
     PETScWrappers::PreconditionJacobi preconditioner;
     preconditioner.initialize(jacobian_matrix);
 
-    SolverControl           solver_control(1000, 1e-8 * src.l2_norm());
+    SolverControl           solver_control(1000, 1e-12 * src.l2_norm());
     PETScWrappers::SolverGMRES gmres(solver_control);
     gmres.set_prefix("user_");
 
@@ -741,7 +743,6 @@ namespace Step86
                                      const PETScWrappers::MPI::Vector &solution,
                                      const PETScWrappers::MPI::Vector &solution_dot,
                                      PETScWrappers::MPI::Vector       &res) {
-      // pcout << "petsc_ts.implicit_function" << std::endl; // DEBUGGING
       this->implicit_function(time, solution, solution_dot, res);
     };
 
@@ -749,18 +750,15 @@ namespace Step86
                                   const PETScWrappers::MPI::Vector &solution,
                                   const PETScWrappers::MPI::Vector &solution_dot,
                                   const double                      beta) {
-      // pcout << "petsc_ts.setup_jacobian" << std::endl; // DEBUGGING
       this->assemble_implicit_jacobian(time, solution, solution_dot, beta);
     };
 
     petsc_ts.solve_with_jacobian = [&](const PETScWrappers::MPI::Vector &src,
                                        PETScWrappers::MPI::Vector       &dst) {
-      // pcout << "petsc_ts.solve_with_jacobian" << std::endl; // DEBUGGING
       this->solve_with_jacobian(src, dst);
     };
 
     petsc_ts.algebraic_components = [&]() {
-      // pcout << "petsc_ts.algebraic_components" << std::endl; // DEBUGGING
       IndexSet algebraic_set(dof_handler.n_dofs());
       algebraic_set.add_indices(DoFTools::extract_boundary_dofs(dof_handler, temperature_component_mask));
       algebraic_set.add_indices(DoFTools::extract_hanging_node_dofs(dof_handler));
@@ -769,7 +767,6 @@ namespace Step86
 
     petsc_ts.update_constrained_components =
       [&](const double time, PETScWrappers::MPI::Vector &solution) {
-        // pcout << "petsc_ts.update_constrained_components" << std::endl; // DEBUGGING
         TimerOutput::Scope t(computing_timer, "set algebraic components");
         update_current_constraints(time);
         current_constraints.distribute(solution);
@@ -780,7 +777,6 @@ namespace Step86
       [&](const double /* time */,
           const unsigned int                step_number,
           const PETScWrappers::MPI::Vector &solution) -> bool {
-      // pcout << "petsc_ts.decide_and_prepare_for_remeshing" << std::endl; // DEBUGGING
       if (step_number > 0 && this->mesh_adaptation_frequency > 0 &&
           step_number % this->mesh_adaptation_frequency == 0)
         {
@@ -796,14 +792,12 @@ namespace Step86
       [&](const double                                   time,
           const std::vector<PETScWrappers::MPI::Vector> &all_in,
           std::vector<PETScWrappers::MPI::Vector>       &all_out) {
-        // pcout << "petsc_ts.transfer_solution_vectors_to_new_mesh" << std::endl; // DEBUGGING
         this->transfer_solution_vectors_to_new_mesh(time, all_in, all_out);
       };
 
     petsc_ts.monitor = [&](const double                      time,
                            const PETScWrappers::MPI::Vector &solution,
                            const unsigned int                step_number) {
-      // pcout << "petsc_ts.monitor" << std::endl; // DEBUGGING
       pcout << "Time step " << step_number << " at t=" << time << std::endl;
       this->output_results(time, step_number, solution);
     };
