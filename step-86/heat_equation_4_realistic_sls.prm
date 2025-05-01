@@ -1,12 +1,12 @@
 subsection Heat Equation
-  set Initial global refinement      = 4
+  set Initial global refinement      = 5
   set Maximum delta refinement level = 2
   set Mesh adaptation frequency      = 5
   set Radius = 0.004
 
   subsection Right hand side
-    set Function constants  = wt=20, rl=0.001, r0=0.001, r1=0.002
-    set Function expression = 1.25e-1 / (2 * pi * (0.5 * rl)^2) * exp(-((x - (r0 + r1 / (4 * pi / w) * t) * cos(wt * t))^2 + (y - (r0 + r1 / (4 * pi / w) * t) * sin(wt * t))^2) / (2 * (0.5 * rl)^2))
+    set Function constants  = wt=30, rl=0.001, r0=0.001, r1=0
+    set Function expression = 1.25e-1 / (2 * pi * (0.5 * rl)^2) * exp(-((x - (r0 + r1 / (4 * pi / wt) * t) * cos(wt * t))^2 + (y - (r0 + r1 / (4 * pi / wt) * t) * sin(wt * t))^2) / (2 * (0.5 * rl)^2))
     set Variable names      = x,y,t
   end
   
@@ -30,7 +30,7 @@ subsection Heat Equation
 
   subsection Alpha u
     set Function constants  = k0=15, k1=0.01, rho0=8000, c0=500, dt=100, ut=1500, H=300000
-    set Function expression = ((k1) * (c0 + (H / (dt* sqrt(2 * pi))) * exp(-0.5 * ((u - ut) / dt)^2)) + (k0 + k1 * u) * (H / (dt^3 * sqrt(2 * pi)) * (u - ut) * exp(-0.5 * ((u - ut) / dt)^2))) / (rho0) / (c0 + (H / (dt* sqrt(2 * pi))) * exp(-0.5 * ((u - ut) / dt)^2))^2 * theta
+    set Function expression = ((k1) * (c0 + (H / (dt * sqrt(2 * pi))) * exp(-0.5 * ((u - ut) / dt)^2)) + (k0 + k1 * u) * (H / (dt^3 * sqrt(2 * pi)) * (u - ut) * exp(-0.5 * ((u - ut) / dt)^2))) / (rho0) / (c0 + (H / (dt * sqrt(2 * pi))) * exp(-0.5 * ((u - ut) / dt)^2))^2 * theta
     set Variable names      = u,theta
   end
 
@@ -60,7 +60,7 @@ subsection Heat Equation
   
   subsection Time stepper
     subsection Running parameters
-      set final time              = 0.62
+      set final time              = 0.32
       set initial step size       = 0.001
       set initial time            = 0
       set match final time        = false
