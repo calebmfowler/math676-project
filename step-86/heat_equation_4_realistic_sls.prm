@@ -1,12 +1,12 @@
 subsection Heat Equation
-  set Initial global refinement      = 5
+  set Initial global refinement      = 3
   set Maximum delta refinement level = 2
-  set Mesh adaptation frequency      = 5
-  set Radius = 0.004
+  set Mesh adaptation frequency      = 10
+  set Radius = 0.003
 
   subsection Right hand side
-    set Function constants  = wt=30, rl=0.001, r0=0.001, r1=0
-    set Function expression = 1.25e-1 / (2 * pi * (0.5 * rl)^2) * exp(-((x - (r0 + r1 / (4 * pi / wt) * t) * cos(wt * t))^2 + (y - (r0 + r1 / (4 * pi / wt) * t) * sin(wt * t))^2) / (2 * (0.5 * rl)^2))
+    set Function constants  = pl=5e5, rl=0.0005, r0=0.001, r1=0, wt=30
+    set Function expression = pl / (2 * pi * rl^2) * exp(-1 / (2 * rl^2) * ((x - (r0 + r1 * t) * cos(wt * t))^2 + (y - (r0 + r1 * t) * sin(wt * t))^2))
     set Variable names      = x,y,t
   end
   
@@ -22,37 +22,55 @@ subsection Heat Equation
     set Variable names      = x,y,t
   end
 
-  subsection Alpha
-    set Function constants  = k0=15, k1=0.01, rho0=8000, c0=500, dt=100, ut=1500, H=300000
-    set Function expression = (k0 + k1 * u) / (rho0) / (c0 + (H / (dt * sqrt(2 * pi))) * exp(-0.5 * ((u - ut) / dt)^2)) * theta
+  subsection k
+    set Function constants  = k0=15, k1=0.01
+    set Function expression = (k0 + k1 * u) * theta
     set Variable names      = u,theta
   end
 
-  subsection Alpha u
-    set Function constants  = k0=15, k1=0.01, rho0=8000, c0=500, dt=100, ut=1500, H=300000
-    set Function expression = ((k1) * (c0 + (H / (dt * sqrt(2 * pi))) * exp(-0.5 * ((u - ut) / dt)^2)) + (k0 + k1 * u) * (H / (dt^3 * sqrt(2 * pi)) * (u - ut) * exp(-0.5 * ((u - ut) / dt)^2))) / (rho0) / (c0 + (H / (dt * sqrt(2 * pi))) * exp(-0.5 * ((u - ut) / dt)^2))^2 * theta
+  subsection k_u
+    set Function constants  = k0=15, k1=0.01
+    set Function expression = k1 * theta
     set Variable names      = u,theta
   end
 
-  subsection Alpha theta
-    set Function constants  = k0=15, k1=0.01, rho0=8000, c0=500, dt=100, ut=1500, H=300000
-    set Function expression = (k0 + k1 * u) / (rho0) / (c0 + (H / (dt* sqrt(2 * pi))) * exp(-0.5 * ((u - ut) / dt)^2))
+  subsection k_theta
+    set Function constants  = k0=15, k1=0.01
+    set Function expression = k0 + k1 * u
     set Variable names      = u,theta
   end
 
-  subsection Sigma
+  subsection m
+    set Function constants  = rho0=8000, c0=500, H=300000, dt=100, ut=1500
+    set Function expression = rho0 * (c0 + H / (dt * sqrt(2 * pi)) * exp(-0.5 * ((u - ut) / dt)^2))
+    set Variable names      = u,theta
+  end
+
+  subsection m_u
+    set Function constants  = rho0=8000, c0=500, H=300000, dt=100, ut=1500
+    set Function expression = -rho0 * H / (dt^3 * sqrt(2 * pi)) * (u - ut) * exp(-0.5 * ((u - ut) / dt)^2)
+    set Variable names      = u,theta
+  end
+
+  subsection m_theta
+    set Function constants  = rho0=8000, c0=500, H=300000, dt=100, ut=1500
+    set Function expression = 0
+    set Variable names      = u,theta
+  end
+
+  subsection s
     set Function constants  = S=5e2, dt=100, ut=1500
     set Function expression = S * (1 - theta) / (1 + exp(-(u - ut) / dt))
     set Variable names      = u,theta
   end
 
-  subsection Sigma u
+  subsection s_u
     set Function constants  = S=5e2, dt=100, ut=1500
-    set Function expression = S * (1 - theta) / dt / (1 + exp(-(u - ut) / dt))^2 * exp(-(u - ut) / dt)
+    set Function expression = S * (1 - theta) / (dt * (1 + exp(-(u - ut) / dt))^2) * exp(-(u - ut) / dt)
     set Variable names      = u,theta
   end
 
-  subsection Sigma theta
+  subsection s_theta
     set Function constants  = S=5e2, dt=100, ut=1500
     set Function expression = -S / (1 + exp(-(u - ut) / dt))
     set Variable names      = u,theta
@@ -60,7 +78,7 @@ subsection Heat Equation
   
   subsection Time stepper
     subsection Running parameters
-      set final time              = 0.32
+      set final time              = 0.06
       set initial step size       = 0.001
       set initial time            = 0
       set match final time        = false

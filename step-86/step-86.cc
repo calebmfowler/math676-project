@@ -61,7 +61,6 @@
 #include <fstream>
 #include <iostream>
 
-
 namespace Step86
 {
   using namespace dealii;
@@ -146,17 +145,23 @@ namespace Step86
     ParameterAcceptorProxy<Functions::ParsedFunction<dim>>
       boundary_values_function;
     ParameterAcceptorProxy<Functions::ParsedFunction<dim>>
-      alpha;
+      k;
     ParameterAcceptorProxy<Functions::ParsedFunction<dim>>
-      alpha_u;
+      k_u;
     ParameterAcceptorProxy<Functions::ParsedFunction<dim>>
-      alpha_theta;
+      k_theta;
     ParameterAcceptorProxy<Functions::ParsedFunction<dim>>
-      sigma;
+      m;
     ParameterAcceptorProxy<Functions::ParsedFunction<dim>>
-      sigma_u;
+      m_u;
     ParameterAcceptorProxy<Functions::ParsedFunction<dim>>
-      sigma_theta;
+      m_theta;
+    ParameterAcceptorProxy<Functions::ParsedFunction<dim>>
+      s;
+    ParameterAcceptorProxy<Functions::ParsedFunction<dim>>
+      s_u;
+    ParameterAcceptorProxy<Functions::ParsedFunction<dim>>
+      s_theta;
   };
 
 
@@ -192,12 +197,15 @@ namespace Step86
     , right_hand_side_function("/Heat Equation/Right hand side")
     , initial_value_function("/Heat Equation/Initial value", num_solution_components)
     , boundary_values_function("/Heat Equation/Boundary values", num_solution_components)
-    , alpha("/Heat Equation/Alpha")
-    , alpha_u("/Heat Equation/Alpha u")
-    , alpha_theta("/Heat Equation/Alpha theta")
-    , sigma("/Heat Equation/Sigma")
-    , sigma_u("/Heat Equation/Sigma u")
-    , sigma_theta("/Heat Equation/Sigma theta")
+    , k("/Heat Equation/k")
+    , k_u("/Heat Equation/k_u")
+    , k_theta("/Heat Equation/k_theta")
+    , m("/Heat Equation/m")
+    , m_u("/Heat Equation/m_u")
+    , m_theta("/Heat Equation/m_theta")
+    , s("/Heat Equation/s")
+    , s_u("/Heat Equation/s_u")
+    , s_theta("/Heat Equation/s_theta")
   {
     enter_subsection("Time stepper");
     {
@@ -363,8 +371,9 @@ namespace Step86
     std::vector<double> cohesion_dot_values(n_q_points);
     std::vector<double> temperature_values(n_q_points);
     std::vector<double> cohesion_values(n_q_points);
-    std::vector<double> alpha_values(n_q_points);
-    std::vector<double> sigma_values(n_q_points);
+    std::vector<double> k_values(n_q_points);
+    std::vector<double> m_values(n_q_points);
+    std::vector<double> s_values(n_q_points);
 
     Vector<double> cell_residual(dofs_per_cell);
 
@@ -392,8 +401,9 @@ namespace Step86
           for (const auto& q : fe_values.quadrature_point_indices())
             {
               const Point<2> sol(temperature_values[q], cohesion_values[q]);
-              alpha_values[q] = alpha.value(sol);
-              sigma_values[q] = sigma.value(sol);
+              k_values[q] = k.value(sol);
+              m_values[q] = m.value(sol);
+              s_values[q] = s.value(sol);
             } 
 
           cell->get_dof_indices(local_dof_indices);
@@ -408,10 +418,11 @@ namespace Step86
                   {
                     cell_residual[i] += (
                       fe_values[temperature_extractor].value(i, q) *    // [phi_i(x_q) *
+                      m_values[q] *                                     //  m_q *
                       temperature_dot_values[q]                         //  dot u(x_q)
                       +                                                 //  +
                       fe_values[temperature_extractor].gradient(i, q) * //  grad phi_i(x_q) *
-                      alpha_values[q] *                                 //  alpha_q *
+                      k_values[q] *                                     //  k_q *
                       temperature_gradients[q]                          //  grad u(x_q)
                       -                                                 //  -
                       fe_values[temperature_extractor].value(i, q) *    //  phi_i(x_q) *
@@ -426,7 +437,7 @@ namespace Step86
                       cohesion_dot_values[q]                            //  dot theta(x_q)
                       -                                                 //   -
                       fe_values[cohesion_extractor].value(i, q) *       //   phi_i(x_q) *
-                      sigma_values[q]                                   //   sigma_q
+                      s_values[q]                                       //   s_q
                     ) * fe_values.JxW(q);                               // ] * dx
                   }
               }
@@ -481,11 +492,12 @@ namespace Step86
     std::vector<Tensor<1, dim>> cohesion_gradients(n_q_points);
     std::vector<double> temperature_values(n_q_points);
     std::vector<double> cohesion_values(n_q_points);
-    std::vector<double> alpha_values(n_q_points);
-    std::vector<double> alpha_u_values(n_q_points);
-    std::vector<double> alpha_theta_values(n_q_points);
-    std::vector<double> sigma_u_values(n_q_points);
-    std::vector<double> sigma_theta_values(n_q_points);
+    std::vector<double> k_values(n_q_points);
+    std::vector<double> k_u_values(n_q_points);
+    std::vector<double> k_theta_values(n_q_points);
+    std::vector<double> m_values(n_q_points);
+    std::vector<double> s_u_values(n_q_points);
+    std::vector<double> s_theta_values(n_q_points);
 
     FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
 
@@ -507,11 +519,12 @@ namespace Step86
           for (const auto& q : fe_values.quadrature_point_indices())
             {
               const Point<2> sol(temperature_values[q], cohesion_values[q]);
-              alpha_values[q] = alpha.value(sol);
-              alpha_u_values[q] = alpha_u.value(sol);
-              alpha_theta_values[q] = alpha_theta.value(sol);
-              sigma_u_values[q] = sigma_u.value(sol);
-              sigma_theta_values[q] = sigma_theta.value(sol);
+              k_values[q] = k.value(sol);
+              k_u_values[q] = k_u.value(sol);
+              k_theta_values[q] = k_theta.value(sol);
+              m_values[q] = m.value(sol);
+              s_u_values[q] = s_u.value(sol);
+              s_theta_values[q] = s_theta.value(sol);
             }
 
           cell->get_dof_indices(local_dof_indices);
@@ -529,13 +542,14 @@ namespace Step86
                       cell_matrix[i][j] += (                                  // [
                         beta *                                                //  beta *
                         fe_values[temperature_extractor].value(i, q) *        //  phi_i(x_q) *
+                        m_values[q] *                                         //  m_q *
                         fe_values[temperature_extractor].value(j, q)          //  phi_j(x_q)
                         +                                                     //  +
                         fe_values[temperature_extractor].gradient(i, q) * (   //  grad phi_i(x_q) *
-                          alpha_values[q] *                                   //  [alpha_q *
+                          k_values[q] *                                       //  [k_q *
                           fe_values[temperature_extractor].gradient(j, q)     //   grad phi_j(x_q)
                           +                                                   //   +
-                          alpha_u_values[q] *                                 //   alpha_u_q *
+                          k_u_values[q] *                                     //   k_u_q *
                           fe_values[temperature_extractor].value(j, q) *      //   phi_j(x_q) *
                           temperature_gradients[q]                            //   grad u(x_q)
                         )                                                     //  ]
@@ -546,7 +560,7 @@ namespace Step86
                     {
                       cell_matrix[i][j] += (                                  // [
                         fe_values[temperature_extractor].gradient(i, q) * (   //  grad phi_i(x_q) *
-                          alpha_theta_values[q] *                             //  [alpha_theta_q *
+                          k_theta_values[q] *                                 //  [alpha_theta_q *
                           fe_values[cohesion_extractor].value(j, q) *         //   phi_j(x_q) *
                           temperature_gradients[q]                            //   grad u(x_q)
                         )                                                     //  ]
@@ -557,8 +571,8 @@ namespace Step86
                     {
                       cell_matrix[i][j] += (                                  // [
                         -fe_values[cohesion_extractor].value(i, q) *          //  -phi_i(x_q) *
-                        sigma_u_values[q] *                                   //  sigma_u_q *
-                        fe_values[temperature_extractor].value(j, q)             //  phi_j(x_q)
+                        s_u_values[q] *                                       //  s_u_q *
+                        fe_values[temperature_extractor].value(j, q)          //  phi_j(x_q)
                       ) * fe_values.JxW(q);                                   // ] * dx
                     }
                   else
@@ -569,7 +583,7 @@ namespace Step86
                         fe_values[cohesion_extractor].value(j, q)             //  phi_j(x_q)
                         -                                                     //  -
                         fe_values[cohesion_extractor].value(i, q) *           //  phi_i(x_q) *
-                        sigma_theta_values[q] *                               //  sigma_theta_q *
+                        s_theta_values[q] *                                   //  s_theta_q *
                         fe_values[cohesion_extractor].value(j, q)             //  phi_j(x_q)
                       ) * fe_values.JxW(q);
                     }
@@ -638,7 +652,7 @@ namespace Step86
     for (unsigned int i = 0; i < triangulation.n_active_cells(); ++i)
       estimated_error_per_cell[i] = std::max(estimated_temperature_error[i], estimated_cohesion_error[i]);
     parallel::distributed::GridRefinement::refine_and_coarsen_fixed_fraction(
-      triangulation, estimated_error_per_cell, 0.4, 0.3);
+      triangulation, estimated_error_per_cell, 0.35, 0.25);
 
     const unsigned int max_grid_level =
       initial_global_refinement + max_delta_refinement_level;
