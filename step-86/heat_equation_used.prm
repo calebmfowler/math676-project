@@ -10,25 +10,25 @@ subsection Heat Equation
   end
   subsection Initial value
     set Function constants  = 
-    set Function expression = 25; 0.01
+    set Function expression = 25; 0.1
     set Variable names      = x,y,t
   end
   subsection Right hand side
-    set Function constants  = pl=5e5, rl=0.0005, r0=0.001, r1=0, wt=30
+    set Function constants  = pl=5e5, rl=0.0005, r0=0.0015, r1=0, wt=30
     set Function expression = pl / (2 * pi * rl^2) * exp(-1 / (2 * rl^2) * ((x - (r0 + r1 * t) * cos(wt * t))^2 + (y - (r0 + r1 * t) * sin(wt * t))^2))
     set Variable names      = x,y,t
   end
   subsection Time stepper
     subsection Error control
-      set absolute error tolerance = -1
+      set absolute error tolerance = 1e-12
       set adaptor type             = none
       set ignore algebraic lte     = true
-      set maximum step size        = -1
-      set minimum step size        = -1
-      set relative error tolerance = -1
+      set maximum step size        = 0.004
+      set minimum step size        = 0.00025
+      set relative error tolerance = 1e-12
     end
     subsection Running parameters
-      set final time              = 0.06
+      set final time              = 0.21
       set initial step size       = 0.001
       set initial time            = 0
       set match final time        = false
@@ -39,17 +39,17 @@ subsection Heat Equation
   end
   subsection k
     set Function constants  = k0=15, k1=0.01
-    set Function expression = (k0 + k1 * u) * theta
+    set Function expression = (k0 + k1 * u) * min(theta, 0.1)
     set Variable names      = u,theta
   end
   subsection k_theta
     set Function constants  = k0=15, k1=0.01
-    set Function expression = k0 + k1 * u
+    set Function expression = if(theta > 0.1, k0 + k1 * u, 0)
     set Variable names      = u,theta
   end
   subsection k_u
     set Function constants  = k0=15, k1=0.01
-    set Function expression = k1 * theta
+    set Function expression = k1 * min(theta, 0.1)
     set Variable names      = u,theta
   end
   subsection m
