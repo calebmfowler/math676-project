@@ -614,14 +614,14 @@ namespace Step86
     PETScWrappers::PreconditionJacobi preconditioner;
     preconditioner.initialize(jacobian_matrix);
 
-    SolverControl           solver_control(1000, 1e-14 * src.l2_norm());
+    SolverControl           solver_control(1000, 1e-12 * src.l2_norm());
     PETScWrappers::SolverGMRES gmres(solver_control);
     gmres.set_prefix("user_");
 
     gmres.solve(jacobian_matrix, dst, src, preconditioner);
 
-    pcout << "     " << solver_control.last_step() << " linear iterations."
-          << std::endl;
+    // pcout << "     " << solver_control.last_step() << " linear iterations."
+    //       << std::endl;
   }
 
 
@@ -747,8 +747,7 @@ namespace Step86
     PETScWrappers::TimeStepper<PETScWrappers::MPI::Vector,
                                PETScWrappers::MPI::SparseMatrix>
       petsc_ts(time_stepper_data);
-    
-    // PetscOptionsInsertString(NULL, "-ts_monitor -snes_monitor -ksp_monitor");
+    PetscOptionsView(NULL, PETSC_VIEWER_STDOUT_WORLD);
 
     petsc_ts.set_matrices(jacobian_matrix, jacobian_matrix);
 
