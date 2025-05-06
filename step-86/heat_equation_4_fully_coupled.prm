@@ -1,5 +1,9 @@
+# Note that in order for the L2 norm to be calculated, the `HeatEquation` constructor in `step-86.cc`
+# must be modified so that `calculate_manufactured_solution_norm` is initialized to `true` and
+# if the manufactured solution is edited, so must the calculation in `output_results()` be modified
+
 subsection Heat Equation
-  set Initial global refinement      = 2
+  set Initial global refinement      = 1
   set Maximum delta refinement level = 0
   set Mesh adaptation frequency      = 10
   set Radius = 1
@@ -95,7 +99,7 @@ subsection Heat Equation
     subsection Error control
       set absolute error tolerance = -1
       set relative error tolerance = -1
-      set adaptor type             = none
+      set adaptor type             = basic
       set ignore algebraic lte     = true
       set maximum step size        = 0.016
       set minimum step size        = 0.001

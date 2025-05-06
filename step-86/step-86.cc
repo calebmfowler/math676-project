@@ -352,24 +352,24 @@ namespace Step86
                     if (fe.system_to_component_index(i).first == temperature_index)
                       {
                         manufactured_solution_norm += pow(
-                          temperature_values[q]
-                          - exp(-time) * cos(
+                          exp(-time) * cos(
                             numbers::PI / (2 * pow(radius, 2))
                             * (fe_values.quadrature_point(q).norm_square())
                           )
+                           - temperature_values[q]
                           , 2
-                        );
+                        ) * fe_values[temperature_extractor].value(i, q) * fe_values.JxW(q);
                       }
                     if (fe.system_to_component_index(i).first == cohesion_index)
                       {
                         manufactured_solution_norm += pow(
-                          temperature_values[q]
-                          - exp(-time) * cos(
+                          exp(-time) * cos(
                             numbers::PI / (2 * pow(radius, 2))
                             * (fe_values.quadrature_point(q).norm_square())
                           )
+                           - cohesion_values[q]
                           , 2
-                        );
+                        ) * fe_values[cohesion_extractor].value(i, q) * fe_values.JxW(q);
                       }
                   }
             }
