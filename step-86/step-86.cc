@@ -188,7 +188,7 @@ namespace Step86
     , temperature_component_mask(fe.component_mask(temperature_extractor))
     , cohesion_component_mask(fe.component_mask(cohesion_extractor))
     , dof_handler(triangulation)
-    , calculate_manufactured_solution_norm(true)
+    , calculate_manufactured_solution_norm(false)
     , manufactured_solution_norm(0)
     , time_stepper_data("",
                         "beuler",
