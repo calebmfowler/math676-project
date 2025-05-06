@@ -12,9 +12,9 @@ make release
 make
 for test_file in $test_files
 do
-    rm -rf solution*
+    rm -r solution*
     mpirun -np 4 ./step-86 "$test_file" -ts_monitor
-    rm -rf "/mnt/c/Users/Caleb Fowler/Documents/MATH 676/step-86-tests/$test_file"
+    rm -r "/mnt/c/Users/Caleb Fowler/Documents/MATH 676/step-86-tests/$test_file"
     mkdir "/mnt/c/Users/Caleb Fowler/Documents/MATH 676/step-86-tests/$test_file"
     mv -f solution* "/mnt/c/Users/Caleb Fowler/Documents/MATH 676/step-86-tests/$test_file"
 done
