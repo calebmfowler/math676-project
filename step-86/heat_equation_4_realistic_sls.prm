@@ -1,6 +1,6 @@
 subsection Heat Equation
   set Initial global refinement      = 5
-  set Maximum delta refinement level = 2
+  set Maximum delta refinement level = 0
   set Mesh adaptation frequency      = 10
   set Radius = 0.003
 
@@ -12,7 +12,7 @@ subsection Heat Equation
   
   subsection Initial value
     set Function constants  = 
-    set Function expression = 25; 0.01
+    set Function expression = 25; 0
     set Variable names      = x,y,t
   end
   
@@ -24,19 +24,19 @@ subsection Heat Equation
 
   subsection k
     set Function constants  = kp0=2, km0=15, km1=0.01
-    set Function expression = (kp0) * (1 - theta) + (km0 + km1 * u) * max(theta, 0)
+    set Function expression = (kp0) * (1 - theta) + (km0 + km1 * u) * theta
     set Variable names      = u,theta
   end
 
   subsection k_u
     set Function constants  = kp0=2, km0=15, km1=0.01
-    set Function expression = (km1 * max(theta, 0))
+    set Function expression = km1 * theta
     set Variable names      = u,theta
   end
 
   subsection k_theta
     set Function constants  = kp0=2, km0=15, km1=0.01
-    set Function expression = if(theta>0, -(kp0) + (km0 + km1 * u), 0)
+    set Function expression = -(kp0) + (km0 + km1 * u)
     set Variable names      = u,theta
   end
 
@@ -60,7 +60,7 @@ subsection Heat Equation
 
   subsection s
     set Function constants  = S=1e2, dt=100, ut=1500
-    set Function expression = S * (1 - theta) / (1 + exp(-(u - ut) / dt)) + if(theta < 0, S * theta^2, 0) + if(theta > 1, -S * (theta - 1)^2, 0)
+    set Function expression = S * (1 - theta) / (1 + exp(-(u - ut) / dt))
     set Variable names      = u,theta
   end
 
@@ -72,7 +72,7 @@ subsection Heat Equation
 
   subsection s_theta
     set Function constants  = S=1e2, dt=100, ut=1500
-    set Function expression = -S / (1 + exp(-(u - ut) / dt)) + if(theta < 0, 2 * S * theta, 0) + if(theta > 1, -2 * S * (theta - 1), 0)
+    set Function expression = -S / (1 + exp(-(u - ut) / dt))
     set Variable names      = u,theta
   end
   
@@ -88,8 +88,8 @@ subsection Heat Equation
     end
 
     subsection Error control
-      set absolute error tolerance = 1e-12
-      set relative error tolerance = 1e-12
+      set absolute error tolerance = -1
+      set relative error tolerance = -1
       set adaptor type             = none
       set ignore algebraic lte     = true
       set maximum step size        = 0.016

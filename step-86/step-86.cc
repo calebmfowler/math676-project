@@ -427,10 +427,10 @@ namespace Step86
                       -                                                 //  -
                       fe_values[temperature_extractor].value(i, q) *    //  phi_i(x_q) *
                       right_hand_side_function.value(                   //  f(
-                          fe_values.quadrature_point(q))                //    x_q)
+                          fe_values.quadrature_point(q))                //   x_q)
                     ) * fe_values.JxW(q);                               // ] * dx
                   }
-                else 
+                else
                   {
                     cell_residual[i] += (
                       fe_values[cohesion_extractor].value(i, q) *       // [phi_i(x_q) *
@@ -467,8 +467,8 @@ namespace Step86
   template <int dim>
   void HeatEquation<dim>::assemble_implicit_jacobian(
     const double /* time */,
-    const PETScWrappers::MPI::Vector & /* solution */,
-    const PETScWrappers::MPI::Vector & /* solution_dot */,
+    const PETScWrappers::MPI::Vector & solution,
+    const PETScWrappers::MPI::Vector & solution_dot,
     const double beta)
   {
     computing_timer.enter_subsection("assemble implicit Jacobian - setup");
@@ -476,12 +476,16 @@ namespace Step86
     PETScWrappers::MPI::Vector locally_relevant_solution(locally_owned_dofs,
                                                          locally_relevant_dofs,
                                                          mpi_communicator);
+    PETScWrappers::MPI::Vector locally_relevant_solution_dot(
+      locally_owned_dofs, locally_relevant_dofs, mpi_communicator);
+    locally_relevant_solution = solution;
+    locally_relevant_solution_dot = solution_dot;
 
     const QGauss<dim> quadrature_formula(fe.degree + 1);
     FEValues<dim>     fe_values(fe,
-                            quadrature_formula,
-                            update_values | update_gradients |
-                              update_quadrature_points | update_JxW_values);
+                                quadrature_formula,
+                                update_values | update_gradients |
+                                update_quadrature_points | update_JxW_values);
 
     const unsigned int dofs_per_cell = fe.n_dofs_per_cell();
     const unsigned int n_q_points    = quadrature_formula.size();
@@ -490,12 +494,15 @@ namespace Step86
 
     std::vector<Tensor<1, dim>> temperature_gradients(n_q_points);
     std::vector<Tensor<1, dim>> cohesion_gradients(n_q_points);
+    std::vector<double> temperature_dot_values(n_q_points);
     std::vector<double> temperature_values(n_q_points);
     std::vector<double> cohesion_values(n_q_points);
     std::vector<double> k_values(n_q_points);
     std::vector<double> k_u_values(n_q_points);
     std::vector<double> k_theta_values(n_q_points);
     std::vector<double> m_values(n_q_points);
+    std::vector<double> m_u_values(n_q_points);
+    std::vector<double> m_theta_values(n_q_points);
     std::vector<double> s_u_values(n_q_points);
     std::vector<double> s_theta_values(n_q_points);
 
@@ -513,9 +520,12 @@ namespace Step86
           fe_values[temperature_extractor].get_function_gradients(
             locally_relevant_solution, temperature_gradients);
           fe_values[temperature_extractor].get_function_values(
+            locally_relevant_solution_dot, temperature_dot_values);
+          fe_values[temperature_extractor].get_function_values(
             locally_relevant_solution, temperature_values);
           fe_values[cohesion_extractor].get_function_values(
             locally_relevant_solution, cohesion_values);
+          
           for (const auto& q : fe_values.quadrature_point_indices())
             {
               const Point<2> sol(temperature_values[q], cohesion_values[q]);
@@ -523,6 +533,8 @@ namespace Step86
               k_u_values[q] = k_u.value(sol);
               k_theta_values[q] = k_theta.value(sol);
               m_values[q] = m.value(sol);
+              m_u_values[q] = m_u.value(sol);
+              m_theta_values[q] = m_theta.value(sol);
               s_u_values[q] = s_u.value(sol);
               s_theta_values[q] = s_theta.value(sol);
             }
@@ -545,25 +557,34 @@ namespace Step86
                         m_values[q] *                                         //  m_q *
                         fe_values[temperature_extractor].value(j, q)          //  phi_j(x_q)
                         +                                                     //  +
-                        fe_values[temperature_extractor].gradient(i, q) * (   //  grad phi_i(x_q) *
-                          k_values[q] *                                       //  [k_q *
-                          fe_values[temperature_extractor].gradient(j, q)     //   grad phi_j(x_q)
-                          +                                                   //   +
-                          k_u_values[q] *                                     //   k_u_q *
-                          fe_values[temperature_extractor].value(j, q) *      //   phi_j(x_q) *
-                          temperature_gradients[q]                            //   grad u(x_q)
-                        )                                                     //  ]
+                        fe_values[temperature_extractor].value(i, q) *        //  phi_i(x_q) *
+                        temperature_dot_values[q] *                           //  dot u(x_q) *
+                        m_u_values[q] *                                       //  m_u_q *
+                        fe_values[temperature_extractor].value(j, q)          //  phi_j(x_q)
+                        +                                                     //  +
+                        fe_values[temperature_extractor].gradient(i, q) *     //  grad phi_i(x_q) *
+                        k_values[q] *                                         //  k_q *
+                        fe_values[temperature_extractor].gradient(j, q)       //  grad phi_j(x_q)
+                        +                                                     //  +
+                        fe_values[temperature_extractor].gradient(i, q) *     //  grad phi_i(x_q) *
+                        temperature_gradients[q] *                            //  grad u(x_q)
+                        k_u_values[q] *                                       //  k_u_q *
+                        fe_values[temperature_extractor].value(j, q)          //  phi_j(x_q)
                       ) * fe_values.JxW(q);                                   // ] * dx
                     }
                   else if (fe.system_to_component_index(i).first == temperature_index &&
                            fe.system_to_component_index(j).first == cohesion_index)
                     {
                       cell_matrix[i][j] += (                                  // [
-                        fe_values[temperature_extractor].gradient(i, q) * (   //  grad phi_i(x_q) *
-                          k_theta_values[q] *                                 //  [alpha_theta_q *
-                          fe_values[cohesion_extractor].value(j, q) *         //   phi_j(x_q) *
-                          temperature_gradients[q]                            //   grad u(x_q)
-                        )                                                     //  ]
+                        fe_values[temperature_extractor].value(i, q) *        //  phi_i(x_q) *
+                        temperature_dot_values[q] *                           //  dot u(x_q) *
+                        m_theta_values[q] *                                   //  m_theta_q *
+                        fe_values[cohesion_extractor].value(j, q)             //  phi_j(x_q)
+                        +                                                     //  +
+                        fe_values[temperature_extractor].gradient(i, q) *     //  grad phi_i(x_q) *
+                        temperature_gradients[q] *                            //  grad u(x_q) *
+                        k_theta_values[q] *                                   //  k_theta_q *
+                        fe_values[cohesion_extractor].value(j, q)             //  phi_j(x_q)
                       ) * fe_values.JxW(q);                                   // ] * dx
                     }
                   else if (fe.system_to_component_index(i).first == cohesion_index &&
@@ -575,7 +596,8 @@ namespace Step86
                         fe_values[temperature_extractor].value(j, q)          //  phi_j(x_q)
                       ) * fe_values.JxW(q);                                   // ] * dx
                     }
-                  else
+                  else if (fe.system_to_component_index(i).first == cohesion_index &&
+                           fe.system_to_component_index(j).first == cohesion_index)
                     {
                       cell_matrix[i][j] += (
                         beta *                                                // [beta *
@@ -614,14 +636,14 @@ namespace Step86
     PETScWrappers::PreconditionJacobi preconditioner;
     preconditioner.initialize(jacobian_matrix);
 
-    SolverControl           solver_control(1000, 1e-12 * src.l2_norm());
+    SolverControl           solver_control(1000, 1e-14 * src.l2_norm());
     PETScWrappers::SolverGMRES gmres(solver_control);
     gmres.set_prefix("user_");
 
     gmres.solve(jacobian_matrix, dst, src, preconditioner);
 
-    // pcout << "     " << solver_control.last_step() << " linear iterations."
-    //       << std::endl;
+    pcout << "     " << solver_control.last_step() << " linear iterations."
+          << std::endl;
   }
 
 
