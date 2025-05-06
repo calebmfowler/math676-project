@@ -5,7 +5,7 @@ subsection Heat Equation
   set Radius = 0.003
 
   subsection Right hand side
-    set Function constants  = pl=4e5, rl=0.0005, r0=0.0015, r1=0, wt=30
+    set Function constants  = pl=3e5, rl=0.0005, r0=0.0015, r1=0, wt=30
     set Function expression = pl / (2 * pi * rl^2) * exp(-1 / (2 * rl^2) * ((x - (r0 + r1 * t) * cos(wt * t))^2 + (y - (r0 + r1 * t) * sin(wt * t))^2))
     set Variable names      = x,y,t
   end
@@ -59,26 +59,26 @@ subsection Heat Equation
   end
 
   subsection s
-    set Function constants  = S=1e2, dt=100, ut=1500
+    set Function constants  = S=5e1, dt=100, ut=1500
     set Function expression = S * (1 - theta) / (1 + exp(-(u - ut) / dt))
     set Variable names      = u,theta
   end
 
   subsection s_u
-    set Function constants  = S=1e2, dt=100, ut=1500
+    set Function constants  = S=5e1, dt=100, ut=1500
     set Function expression = S * (1 - theta) / (dt * (1 + exp(-(u - ut) / dt))^2) * exp(-(u - ut) / dt)
     set Variable names      = u,theta
   end
 
   subsection s_theta
-    set Function constants  = S=1e2, dt=100, ut=1500
+    set Function constants  = S=5e1, dt=100, ut=1500
     set Function expression = -S / (1 + exp(-(u - ut) / dt))
     set Variable names      = u,theta
   end
   
   subsection Time stepper
     subsection Running parameters
-      set final time              = 0.21
+      set final time              = 0.22
       set initial step size       = 0.004
       set initial time            = 0
       set match final time        = false

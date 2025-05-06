@@ -1,0 +1,104 @@
+subsection Heat Equation
+  set Initial global refinement      = 5
+  set Maximum delta refinement level = 0
+  set Mesh adaptation frequency      = 10
+  set Radius = 1
+
+  subsection Right hand side
+    set Function constants  = r=1
+    set Function expression = exp(-3 * t) * ( \
+                                - cos(pi / (2 * r^2) * (x^2 + y^2))^3 \
+                                - 2 * cos(pi / (2 * r^2) * (x^2 + y^2)) * sin(pi / (2 * r^2) * (x^2 + y^2))^2  * pi^2 / r^4 * (x^2 + y^2) \
+                                + cos(pi / (2 * r^2) * (x^2 + y^2))^3  * pi^2 / r^4 * (x^2 + y^2) \
+                                + 2 * cos(pi / (2 * r^2) * (x^2 + y^2))^2 * sin(pi / (2 * r^2) * (x^2 + y^2)) * pi / r^2 \
+                              )
+    set Variable names      = x,y,t
+  end
+  
+  subsection Initial value
+    set Function constants  = r=1
+    set Function expression = cos(pi / (2 * r^2) * (x^2 + y^2)); cos(pi / (2 * r^2) * (x^2 + y^2))
+    set Variable names      = x,y,t
+  end
+  
+  subsection Boundary values
+    set Function constants  = 
+    set Function expression = 0; 0
+    set Variable names      = x,y,t
+  end
+
+  subsection k
+    set Function constants  = 
+    set Function expression = u * theta
+    set Variable names      = u,theta
+  end
+
+  subsection k_u
+    set Function constants  = 
+    set Function expression = theta
+    set Variable names      = u,theta
+  end
+
+  subsection k_theta
+    set Function constants  = 
+    set Function expression = u
+    set Variable names      = u,theta
+  end
+
+  subsection m
+    set Function constants  = 
+    set Function expression = u * theta
+    set Variable names      = u,theta
+  end
+
+  subsection m_u
+    set Function constants  = 
+    set Function expression = theta
+    set Variable names      = u,theta
+  end
+
+  subsection m_theta
+    set Function constants  = 
+    set Function expression = u
+    set Variable names      = u,theta
+  end
+
+  subsection s
+    set Function constants  =
+    set Function expression = -0.5 * (u + theta)
+    set Variable names      = u,theta
+  end
+
+  subsection s_u
+    set Function constants  = 
+    set Function expression = -0.5 * theta
+    set Variable names      = u,theta
+  end
+
+  subsection s_theta
+    set Function constants  = 
+    set Function expression = -0.5 * u
+    set Variable names      = u,theta
+  end
+  
+  subsection Time stepper
+    subsection Running parameters
+      set final time              = 0.25
+      set initial step size       = 0.001
+      set initial time            = 0
+      set match final time        = false
+      set maximum number of steps = -1
+      set options prefix          = 
+      set solver type             = beuler
+    end
+
+    subsection Error control
+      set absolute error tolerance = -1
+      set relative error tolerance = -1
+      set adaptor type             = none
+      set ignore algebraic lte     = true
+      set maximum step size        = 0.016
+      set minimum step size        = 0.001
+    end    
+  end
+end

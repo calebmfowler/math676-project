@@ -2,20 +2,20 @@ subsection Heat Equation
   set Initial global refinement      = 5
   set Maximum delta refinement level = 0
   set Mesh adaptation frequency      = 10
-  set Radius                         = 0.003
+  set Radius                         = 1
   subsection Boundary values
     set Function constants  = 
-    set Function expression = 25; 0
+    set Function expression = 0; 0
     set Variable names      = x,y,t
   end
   subsection Initial value
-    set Function constants  = 
-    set Function expression = 25; 0
+    set Function constants  = r=1
+    set Function expression = cos(pi / (2 * r^2) * (x^2 + y^2)); cos(pi / (2 * r^2) * (x^2 + y^2))
     set Variable names      = x,y,t
   end
   subsection Right hand side
-    set Function constants  = pl=4e5, rl=0.0005, r0=0.0015, r1=0, wt=30
-    set Function expression = pl / (2 * pi * rl^2) * exp(-1 / (2 * rl^2) * ((x - (r0 + r1 * t) * cos(wt * t))^2 + (y - (r0 + r1 * t) * sin(wt * t))^2))
+    set Function constants  = r=1
+    set Function expression = exp(-3 * t) * ( - cos(pi / (2 * r^2) * (x^2 + y^2))^3 - 2 * cos(pi / (2 * r^2) * (x^2 + y^2)) * sin(pi / (2 * r^2) * (x^2 + y^2))^2  * pi^2 / r^4 * (x^2 + y^2) + cos(pi / (2 * r^2) * (x^2 + y^2))^3  * pi^2 / r^4 * (x^2 + y^2) + 2 * cos(pi / (2 * r^2) * (x^2 + y^2))^2 * sin(pi / (2 * r^2) * (x^2 + y^2)) * pi / r^2 )
     set Variable names      = x,y,t
   end
   subsection Time stepper
@@ -28,8 +28,8 @@ subsection Heat Equation
       set relative error tolerance = -1
     end
     subsection Running parameters
-      set final time              = 0.21
-      set initial step size       = 0.004
+      set final time              = 0.22
+      set initial step size       = 0.001
       set initial time            = 0
       set match final time        = false
       set maximum number of steps = -1
@@ -38,48 +38,48 @@ subsection Heat Equation
     end
   end
   subsection k
-    set Function constants  = kp0=2, km0=15, km1=0.01
-    set Function expression = (kp0) * (1 - theta) + (km0 + km1 * u) * theta
+    set Function constants  = 
+    set Function expression = u * theta
     set Variable names      = u,theta
   end
   subsection k_theta
-    set Function constants  = kp0=2, km0=15, km1=0.01
-    set Function expression = -(kp0) + (km0 + km1 * u)
+    set Function constants  = 
+    set Function expression = u
     set Variable names      = u,theta
   end
   subsection k_u
-    set Function constants  = kp0=2, km0=15, km1=0.01
-    set Function expression = km1 * theta
+    set Function constants  = 
+    set Function expression = theta
     set Variable names      = u,theta
   end
   subsection m
-    set Function constants  = rho0=8000, c0=500, H=300000, dt=100, ut=1500
-    set Function expression = rho0 * (c0 + H / (dt * sqrt(2 * pi)) * exp(-0.5 * ((u - ut) / dt)^2)) * (0.6 + 0.4 * theta)^2
+    set Function constants  = 
+    set Function expression = u * theta
     set Variable names      = u,theta
   end
   subsection m_theta
-    set Function constants  = rho0=8000, c0=500, H=300000, dt=100, ut=1500
-    set Function expression = rho0 * (c0 + H / (dt * sqrt(2 * pi)) * exp(-0.5 * ((u - ut) / dt)^2)) * (0.8 * theta)
+    set Function constants  = 
+    set Function expression = u
     set Variable names      = u,theta
   end
   subsection m_u
-    set Function constants  = rho0=8000, c0=500, H=300000, dt=100, ut=1500
-    set Function expression = -rho0 * H / (dt^3 * sqrt(2 * pi)) * (u - ut) * exp(-0.5 * ((u - ut) / dt)^2) * (0.6 + 0.4 * theta)^2
+    set Function constants  = 
+    set Function expression = theta
     set Variable names      = u,theta
   end
   subsection s
-    set Function constants  = S=1e2, dt=100, ut=1500
-    set Function expression = S * (1 - theta) / (1 + exp(-(u - ut) / dt))
+    set Function constants  = 
+    set Function expression = -0.5 * (u + theta)
     set Variable names      = u,theta
   end
   subsection s_theta
-    set Function constants  = S=1e2, dt=100, ut=1500
-    set Function expression = -S / (1 + exp(-(u - ut) / dt))
+    set Function constants  = 
+    set Function expression = -0.5 * u
     set Variable names      = u,theta
   end
   subsection s_u
-    set Function constants  = S=1e2, dt=100, ut=1500
-    set Function expression = S * (1 - theta) / (dt * (1 + exp(-(u - ut) / dt))^2) * exp(-(u - ut) / dt)
+    set Function constants  = 
+    set Function expression = -0.5 * theta
     set Variable names      = u,theta
   end
 end
