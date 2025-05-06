@@ -17,6 +17,7 @@
  *   Stefano Zampini, King Abdullah University of Science and Technology, 2024
  */
 
+#include <deal.II/base/numbers.h>
 #include <mpi.h>
 #include <deal.II/base/exceptions.h>
 #include <deal.II/base/utilities.h>
@@ -89,6 +90,8 @@ namespace Step86
     const ComponentMask                       temperature_component_mask;
     const ComponentMask                       cohesion_component_mask;
     DoFHandler<dim>                           dof_handler;
+    bool                                      calculate_manufactured_solution_norm;
+    double                                    manufactured_solution_norm;
 
     IndexSet locally_owned_dofs;
     IndexSet locally_relevant_dofs;
@@ -185,6 +188,8 @@ namespace Step86
     , temperature_component_mask(fe.component_mask(temperature_extractor))
     , cohesion_component_mask(fe.component_mask(cohesion_extractor))
     , dof_handler(triangulation)
+    , calculate_manufactured_solution_norm(true)
+    , manufactured_solution_norm(0)
     , time_stepper_data("",
                         "beuler",
                         /* start time */ 0.0,
@@ -314,6 +319,61 @@ namespace Step86
     const std::string filename =
       "solution-" + Utilities::int_to_string(timestep_number, 3) + ".vtu";
     data_out.write_vtu_in_parallel(filename, mpi_communicator);
+
+    if (calculate_manufactured_solution_norm)
+      {
+        PETScWrappers::MPI::Vector locally_relevant_solution(locally_owned_dofs,
+                                                             locally_relevant_dofs,
+                                                             mpi_communicator);
+        locally_relevant_solution = solution;
+
+        const QGauss<dim> quadrature_formula(fe.degree + 1);
+        FEValues<dim>     fe_values(fe,
+                                    quadrature_formula,
+                                    update_values | update_quadrature_points | update_JxW_values);
+        
+        const unsigned int n_q_points    = quadrature_formula.size();
+        std::vector<double> temperature_values(n_q_points);
+        std::vector<double> cohesion_values(n_q_points);
+
+        for (const auto &cell : dof_handler.active_cell_iterators())
+          if (cell->is_locally_owned())
+            {
+              fe_values.reinit(cell);
+
+              fe_values[temperature_extractor].get_function_values(
+                locally_relevant_solution, temperature_values);
+              fe_values[cohesion_extractor].get_function_values(
+                locally_relevant_solution, cohesion_values);
+
+              for (const unsigned int q : fe_values.quadrature_point_indices())
+                for (const unsigned int i : fe_values.dof_indices())
+                  {
+                    if (fe.system_to_component_index(i).first == temperature_index)
+                      {
+                        manufactured_solution_norm += pow(
+                          temperature_values[q]
+                          - exp(-time) * cos(
+                            numbers::PI / (2 * pow(radius, 2))
+                            * (fe_values.quadrature_point(q).norm_square())
+                          )
+                          , 2
+                        );
+                      }
+                    if (fe.system_to_component_index(i).first == cohesion_index)
+                      {
+                        manufactured_solution_norm += pow(
+                          temperature_values[q]
+                          - exp(-time) * cos(
+                            numbers::PI / (2 * pow(radius, 2))
+                            * (fe_values.quadrature_point(q).norm_square())
+                          )
+                          , 2
+                        );
+                      }
+                  }
+            }
+      }
 
     if (Utilities::MPI::this_mpi_process(mpi_communicator) == 0)
       {
@@ -459,7 +519,6 @@ namespace Step86
             residual[c.index] = solution[c.index];
         }
     residual.compress(VectorOperation::insert);
-    // pcout << "          residual norm = " << residual.l2_norm() << std::endl;
     computing_timer.leave_subsection();
   }
 
@@ -842,6 +901,9 @@ namespace Step86
     VectorTools::interpolate(dof_handler, initial_value_function, solution);
 
     petsc_ts.solve(solution);
+
+    if (calculate_manufactured_solution_norm)
+      pcout << "Manufactured solution norm = " << sqrt(manufactured_solution_norm) << std::endl;
   }
 } // namespace Step86
 
