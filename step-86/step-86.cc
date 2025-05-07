@@ -17,6 +17,8 @@
  *   Stefano Zampini, King Abdullah University of Science and Technology, 2024
  */
 
+// Here the includes do not vary appreciably from step-86
+
 #include <deal.II/base/numbers.h>
 #include <mpi.h>
 #include <deal.II/base/exceptions.h>
@@ -62,6 +64,12 @@
 #include <fstream>
 #include <iostream>
 
+// The first major variation from step-86, here, is the use of the FESystem class
+// rather than the FE_Q class. This allows us to incorporate the second solution component.
+// Further, we instantiate extractors and masks for operation on the temperature
+// and cohesion components throughout the program. We also instantiate a tracker for
+// testing variation from a manufactured solution in a particular test case.
+
 namespace Step86
 {
   using namespace dealii;
@@ -96,6 +104,9 @@ namespace Step86
     IndexSet locally_owned_dofs;
     IndexSet locally_relevant_dofs;
 
+// Here we define all the same functions as the step-86 tutorial for use with the
+// PETSc timestepper. This includes functions related to mesh adaptation, although this
+// functionality is not operable.
 
     void setup_system(const double time);
 
@@ -136,6 +147,17 @@ namespace Step86
 
     PETScWrappers::TimeStepperData time_stepper_data;
 
+// Here we accept parameters from the *.prm file provided at runtime,
+// significantly expanding the functionality of step-86. We accept quantities
+// related to the domain and meshing. We also accept the heat source functions,
+// initial, and boundary value functions. Note that the boundary value function
+// is vector valued, but only the first component, corresponding to temperature,
+// is actually enforces. We also accept the modeling functions for thermal
+// conductivity, k, thermal density, m, and stickiness, s, which is the time rate
+// of change of cohesion. Also accepted are the analytical partial derivatives of
+// each with respect to the temperature, u, and the cohesion, theta, which are
+// necessary for the assembly of the implicit jacobian.
+
     double radius;
     unsigned int initial_global_refinement;
     unsigned int max_delta_refinement_level;
@@ -167,6 +189,11 @@ namespace Step86
       s_theta;
   };
 
+// Here we initialize our member attributes, notably our extractors and masks.
+// Also, it should be noted that the attributes time_stepper_data, radius,
+// initial_global_refinement, max_delta_refinement_level, and
+// mesh_adaptation_frequency are subsequently overwritten in the body of the
+// constructor.
 
   template <int dim>
   HeatEquation<dim>::HeatEquation(const MPI_Comm mpi_communicator)
@@ -237,7 +264,8 @@ namespace Step86
                   "When to adapt the mesh.");
   }
 
-
+// The system setup is unmodified from step-86 except that the temperature mask
+// is used to omit cohesion dofs from the application of homogenous constraints.
 
   template <int dim>
   void HeatEquation<dim>::setup_system(const double time)
@@ -300,6 +328,7 @@ namespace Step86
                            mpi_communicator);
   }
 
+// Here we output results, and so must append labels for each component.
 
   template <int dim>
   void HeatEquation<dim>::output_results(const double       time,
@@ -319,6 +348,13 @@ namespace Step86
     const std::string filename =
       "solution-" + Utilities::int_to_string(timestep_number, 3) + ".vtu";
     data_out.write_vtu_in_parallel(filename, mpi_communicator);
+
+// Here, for testing purposes, we calculate the L2 norm of deviance in the
+// solution from a manufactured solution. This looks a lot like the calculation
+// of an individual residual vector. First we identify the locally relevant
+// solution. Next we traverse locally owned cells and  and compile temperature
+// and cohesion values. Finally, for every quadrature point and locally
+// owned cell dofs, we compute the contribution.
 
     if (calculate_manufactured_solution_norm)
       {
@@ -349,6 +385,11 @@ namespace Step86
               for (const unsigned int q : fe_values.quadrature_point_indices())
                 for (const unsigned int i : fe_values.dof_indices())
                   {
+
+// Here, the contribution to the L2 norm of deviance from our manufactured
+// solution is computed. Notably, the manufactured solution here is
+// hard-coded to correspond to the heat_equation_4_fully_coupled.prm.
+
                     if (fe.system_to_component_index(i).first == temperature_index)
                       {
                         manufactured_solution_norm += pow(
@@ -384,6 +425,13 @@ namespace Step86
         DataOutBase::write_pvd_record(pvd_output, times_and_names);
       }
   }
+
+// Significant modifications are made here from step-86, but the structure
+// remains identical. We obtain teh locally owned solution, and for each
+// locally owned cell we compile temperature gradients, rates of change, 
+// and values, as well as cohesion rates of change and values. Using these,
+// we also compile values of thermal conductivity, thermal density, and
+// and stickiness.
 
   template <int dim>
   void
@@ -426,7 +474,6 @@ namespace Step86
     std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
 
     std::vector<Tensor<1, dim>> temperature_gradients(n_q_points);
-    std::vector<Tensor<1, dim>> cohesion_gradients(n_q_points);
     std::vector<double> temperature_dot_values(n_q_points);
     std::vector<double> cohesion_dot_values(n_q_points);
     std::vector<double> temperature_values(n_q_points);
@@ -445,7 +492,6 @@ namespace Step86
     for (const auto &cell : dof_handler.active_cell_iterators())
       if (cell->is_locally_owned())
         {
-          // computing_timer.enter_subsection("implicit function - get cell values");
           fe_values.reinit(cell);
 
           fe_values[temperature_extractor].get_function_gradients(
@@ -468,12 +514,15 @@ namespace Step86
 
           cell->get_dof_indices(local_dof_indices);
 
-          // computing_timer.leave_subsection();
-          // computing_timer.enter_subsection("implicit function - residual assembly");
           cell_residual = 0;
           for (const unsigned int q : fe_values.quadrature_point_indices())
             for (const unsigned int i : fe_values.dof_indices())
               {
+
+// As a performance optimization, we use redundant conditionals to avoid
+// adding zero many times over. The assembly here reflects the residual
+// expression derived in the introduction
+
                 if (fe.system_to_component_index(i).first == temperature_index)
                   {
                     cell_residual[i] += (
@@ -504,7 +553,6 @@ namespace Step86
           current_constraints.distribute_local_to_global(cell_residual,
                                                          local_dof_indices,
                                                          residual);
-          // computing_timer.leave_subsection();
         }
     computing_timer.leave_subsection();
     computing_timer.enter_subsection("implicit function - cleanup");
@@ -522,6 +570,14 @@ namespace Step86
     computing_timer.leave_subsection();
   }
 
+// Here we do make minor structural modifications from step-86, because our
+// coupled system needs much more information for assembly of the jacobian.
+// Akin to the residual evaluation, we accept the MPI solution and
+// solution_dot vectors and identify the locally relevant solution. From
+// there, for each locally owned cell, we compile the temperature gradients,
+// rates of change, and values, as well as the cohesion values. Using the
+// values, we also compile values and partial derivatives of the thermal
+// conductivity, thermal density, and stickiness.
 
   template <int dim>
   void HeatEquation<dim>::assemble_implicit_jacobian(
@@ -552,7 +608,6 @@ namespace Step86
     std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
 
     std::vector<Tensor<1, dim>> temperature_gradients(n_q_points);
-    std::vector<Tensor<1, dim>> cohesion_gradients(n_q_points);
     std::vector<double> temperature_dot_values(n_q_points);
     std::vector<double> temperature_values(n_q_points);
     std::vector<double> cohesion_values(n_q_points);
@@ -573,7 +628,6 @@ namespace Step86
     for (const auto &cell : dof_handler.active_cell_iterators())
       if (cell->is_locally_owned())
         {
-          // computing_timer.enter_subsection("assemble implicit Jacobian - get cell values");
           fe_values.reinit(cell);
 
           fe_values[temperature_extractor].get_function_gradients(
@@ -601,12 +655,15 @@ namespace Step86
           cell->get_dof_indices(local_dof_indices);
 
           cell_matrix = 0;
-          // computing_timer.leave_subsection();
-          // computing_timer.enter_subsection("assemble implicit Jacobian - jacobian assembly");
           for (const unsigned int q : fe_values.quadrature_point_indices())
             for (const unsigned int i : fe_values.dof_indices())
               for (const unsigned int j : fe_values.dof_indices())
                 {
+
+// We again use redundant conditionals as a performance enhancement. Also
+// again, the assembly here exactly reflects the expression derived in the
+// introduction.
+
                   if (fe.system_to_component_index(i).first == temperature_index &&
                       fe.system_to_component_index(j).first == temperature_index)
                     {
@@ -672,7 +729,6 @@ namespace Step86
           current_constraints.distribute_local_to_global(cell_matrix,
                                                          local_dof_indices,
                                                          jacobian_matrix);
-          // computing_timer.leave_subsection();
         }
     computing_timer.leave_subsection();
     computing_timer.enter_subsection("assemble implicit Jacobian - cleanup");
@@ -684,6 +740,14 @@ namespace Step86
     computing_timer.leave_subsection();
   }
 
+// We modify the preconditioner and solver from step-86. First, because of 
+// our strong coupling, the requirements for the BoomerAMG preconditioner
+// are no longer met. As such we use simple Jacobi preconditioning. We 
+// could improved our approach here by using block-wise preconditioning.
+// Second, in order to address out of bounds values of cohesion (ie values
+// not in [0, 1]), the solver control is made much more strict, from
+// 1e-8 to 1e-14. Third, we use the GMRES solver rather than the original
+// conjugate gradient solver.
 
   template <int dim>
   void
@@ -705,6 +769,13 @@ namespace Step86
           << std::endl;
   }
 
+// The following function was modified for earlier testing when adaptive
+// mesh refinement was still in use. In this case, we divided the error
+// estimation associated with the temperature and cohesion fields, and
+// took the estimated error on each cell as the maximum of the two. Then,
+// we refined fixed fractions according to those maximums. However, as
+// mentioned previously, the mesh adaptivity is not operable, so this
+// is effectively disabled.
 
   template <int dim>
   void HeatEquation<dim>::prepare_for_coarsening_and_refinement(
@@ -748,6 +819,8 @@ namespace Step86
       cell->clear_coarsen_flag();
   }
 
+// No modification is made to this function from step-86, except that it
+// goes unused since mesh adaptivity is disabled.
 
   template <int dim>
   void HeatEquation<dim>::transfer_solution_vectors_to_new_mesh(
@@ -789,6 +862,9 @@ namespace Step86
       hanging_nodes_constraints.distribute(v);
   }
 
+// A minor but critical edit is made here, whereing the temperature
+// component mask is provided to interpolate_boundary_values(), such that
+// boundary conditions are only enforced on the temperature field.
 
   template <int dim>
   void HeatEquation<dim>::update_current_constraints(const double time)
@@ -818,6 +894,11 @@ namespace Step86
   template <int dim>
   void HeatEquation<dim>::run()
   {
+
+// Here the mesh generation is modified to generate a disc. An exception
+// is also thrown if the dimension is set to anything besides two, since
+// that is outside the scope of what has been implemented.
+
     const Point<dim> center;
     GridGenerator::hyper_ball(triangulation, center, radius);
     if (dim != 2) { DEAL_II_NOT_IMPLEMENTED(); }
@@ -828,6 +909,10 @@ namespace Step86
     PETScWrappers::TimeStepper<PETScWrappers::MPI::Vector,
                                PETScWrappers::MPI::SparseMatrix>
       petsc_ts(time_stepper_data);
+
+// After a great deal of trouble with the PETSc timestepper over-reducing
+// the time step size, we output its settings here just to check.
+
     PetscOptionsView(NULL, PETSC_VIEWER_STDOUT_WORLD);
 
     petsc_ts.set_matrices(jacobian_matrix, jacobian_matrix);
@@ -851,6 +936,9 @@ namespace Step86
                                        PETScWrappers::MPI::Vector       &dst) {
       this->solve_with_jacobian(src, dst);
     };
+
+// Here we modify the extraction of boundary dofs so as to only identify
+// temperature dofs.
 
     petsc_ts.algebraic_components = [&]() {
       IndexSet algebraic_set(dof_handler.n_dofs());
@@ -902,11 +990,16 @@ namespace Step86
 
     petsc_ts.solve(solution);
 
+// Having completed solving, in the case that the L2 norm of deviance from
+// the manufactured solution is being calculated, it is printed.
+
     if (calculate_manufactured_solution_norm)
       pcout << "Manufactured solution norm = " << sqrt(manufactured_solution_norm) << std::endl;
   }
 } // namespace Step86
 
+// The main file is untouched except for the addition of a print statement
+// to indicate the parameter file being used.
 
 int main(int argc, char **argv)
 {

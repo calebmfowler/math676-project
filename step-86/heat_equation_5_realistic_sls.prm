@@ -1,5 +1,5 @@
 subsection Heat Equation
-  set Initial global refinement      = 5
+  set Initial global refinement      = 7
   set Maximum delta refinement level = 0
   set Mesh adaptation frequency      = 10
   set Radius = 0.008
